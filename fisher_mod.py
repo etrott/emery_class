@@ -1,10 +1,12 @@
-from numpy import *
+#rewrite data import as 3d array
+#rewrite derivatives using np.diff
+
+
 import matplotlib.pyplot as plt
 import numpy as np
+from numpy import loadtxt
 import subprocess
 import os
-import csv
-import math
 import matplotlib as mpl
 
 font = {'family':'serif','weight':'normal','size':12}
@@ -19,16 +21,6 @@ mpl.rcParams['ytick.minor.width'] = 1
 mpl.rcParams['axes.labelsize'] = 16
 mpl.rc('font', **font)
 
-#take fresh axicamb and run fixed omega
-run_cambAxion4 = False
-plot_derivatives = False
-plot_wb_derivative = True
-plot_wc_derivative = True
-plot_fa_derivative = True
-plot_ns_derivative = True
-plot_h_derivative = True
-plot_variance = False
-plot_axion_constraints = True
 #Standard values for [wb,wc,wa,h,ns]
 central_values = [0.02238,0.125,0.0000001,67.7,0.96]
 #Fine tuned step sizes to ensure well-behaved derivatives
@@ -46,34 +38,50 @@ for key in fin_varied:
 		fin_varied[key].append([central_values[key]*(1.0-fin_epsilon[key]),central_values[key]*(1.0+fin_epsilon[key])])
 #Creates a list of masses even space in log-space
 masses = np.logspace(-24,-30,100)
-#Runs axionCAMB and renames the matterpower output files to reflect the parameters are used for each run
-#Each integer (1 through 6) after ./camb params.ini initiates a new parameter value to be set
-# 1 = ombh^2 (omegab)     # 4 = mass_axion (ma)
-# 2 = omch^2 (omegac)     # 5 = H (H0)
-# 3 = omaxh^2 (omegaax)   # 6 = ns (an)
-python_directory = os.getcwd()
-camb_directory = '/Users/etrott12/Dropbox/emery/axionCAMB'
-counter = 0
-if run_cambAxion4 == True:
-	for j in range(len(masses)):
-		for i in range(len(fin_varied[0])):
-			os.chdir(camb_directory)
-			for k in range(len(fin_varied[0][i])):
-				counter += 1
-				print 'Starting mass run ',counter,'/',2*len(masses)
-				subprocess.call('./camb params.ini 1 %s 2 0.125 3 0.0000001 4 %s 5 67.7 6 0.96'%(fin_varied[0][i][k],masses[j]),shell=True)
-				subprocess.call('mv test_matterpower.dat mp/wb%s_m%s.dat'%(counter,j),shell=True)
-				subprocess.call('./camb params.ini 1 0.02238 2 %s 3 0.0000001 4 %s 5 67.7 6 0.96'%(fin_varied[1][i][k],masses[j]),shell=True)
-				subprocess.call('mv test_matterpower.dat mp/wc%s_m%s.dat'%(counter,j),shell=True)
-				subprocess.call('./camb params.ini 1 0.02238 2 %s 3 %s 4 %s 5 67.7 6 0.96'%(central_values[1]-fin_varied[2][i][k],fin_varied[2][i][k],masses[j]),shell=True)
-				subprocess.call('mv test_matterpower.dat mp/wa%s_m%s.dat'%(counter,j),shell=True)
-				subprocess.call('./camb params.ini 1 0.02238 2 0.125 3 0.0000001 4 %s 5 %s 6 0.96'%(masses[j],fin_varied[3][i][k]),shell=True)
-				subprocess.call('mv test_matterpower.dat mp/h%s_m%s.dat'%(counter,j),shell=True)
-				subprocess.call('./camb params.ini 1 0.02238 2 0.125 3 0.0000001 4 %s 5 67.7 6 %s'%(masses[j],fin_varied[4][i][k]),shell=True)
-				subprocess.call('mv test_matterpower.dat mp/ns%s_m%s.dat'%(counter,j),shell=True)
-		subprocess.call('./camb params.ini 1 0.02238 2 0.125 3 0.000001 4 %s 5 67.7 6 0.96'  %(masses[j]), shell = True)
-		subprocess.call('mv test_matterpower.dat mp/m%s.dat' %(j), shell = True)
-		os.chdir(python_directory)
+
+
+a = np.arange(0,100,1)
+b = np.arange(1,201,2)
+c = np.arange(2,201,2)
+
+
+k_low = []
+Pk_low = []
+for i in range(len(b)):
+	k_low.append(loadtxt('/Users/etrott12/Dropbox/emery/axionCAMB/mp/wb%s_m%s.dat' %(b[i],a[i]), usecols = [0]))
+	Pk_low.append(loadtxt('/Users/etrott12/Dropbox/emery/axionCAMB/mp/wb%s_m%s.dat' %(b[i],a[i]), usecols = [1]))
+k_low = np.asarray(k_low)
+Pk_low =np.asarray(Pk_low)
+
+k_high = []
+Pk_high = []
+for i in range(len(c)):
+        k_high.append(loadtxt('/Users/etrott12/Dropbox/emery/axionCAMB/mp/wb%s_m%s.dat' %(c[i],a[i]), usecols = [0]))
+        Pk_high.append(loadtxt('/Users/etrott12/Dropbox/emery/axionCAMB/mp/wb%s_m%s.dat' %(c[i],a[i]), usecols = [1]))
+k_high =np.asarray(k_high)
+Pk_high =np.asarray(Pk_high)
+
+Pk_diff = Pk_high-Pk_low
+
+
+def fin_deriv(Pk_high,Pk_low,param_num):
+	param_deriv = (Pk_high-Pk_low)/(fin_epsilon[param_num]*central_values[param_num])
+	return param_deriv
+
+#def fin_deriv(k,param_dict,step_size,param_value):
+#	param_deriv = {key:[(param_dict[key][1][i]-param_dict[key][0][i])/(step_size*param_value) for i in range(len(param_dict[key][0]))] for key in range(len(k))}
+#	return param_deriv
+
+wb_deriv = fin_deriv(Pk_high,Pk_low,0)
+print wb_deriv
+
+"""
+even = np.arange(0,len(Pk),2)
+odd = np.arange(1,len(Pk)+1,2)
+
+#test = [[np.subtract(Pk[i][even[j]],Pk[i][odd[j]]) for j in range(len(Pk[i]))] for i in range(len(Pk))]
+#for i in range(len(Pk)):
+#print test
 
 #Initializes finite difference power spectrum dictionaries
 k_wb = {key:{i:[] for i in range(2*len(fin_varied[1]))} for key in range(len(masses))}
@@ -91,31 +99,17 @@ Pk = {key:{i:[] for i in range(2*len(fin_varied[1]))} for key in range(len(masse
 
 #Fills the finite difference power spectrum dictionaries
 for key in k:
-	counter = 0
-	for i in range(2*key+1,2*key+3):
-		k_wb[key][counter],Pk_wb[key][counter] = loadtxt('mp/wb%s_m%s.dat' %(i,key), unpack = True, usecols=[0,1])
-		k_wc[key][counter],Pk_wc[key][counter] = loadtxt('mp/wc%s_m%s.dat' %(i,key), unpack = True, usecols=[0,1])
-		k_wa[key][counter],Pk_wa[key][counter] = loadtxt('mp/wa%s_m%s.dat' %(i,key), unpack = True, usecols=[0,1])
-		k_ns[key][counter],Pk_ns[key][counter] = loadtxt('mp/ns%s_m%s.dat' %(i,key), unpack = True, usecols=[0,1])
-		k_h[key][counter],Pk_h[key][counter] = loadtxt('mp/h%s_m%s.dat' %(i,key), unpack = True, usecols=[0,1])
-		k[key][counter],Pk[key][counter] = loadtxt('mp/m%s.dat' %(key), unpack = True, usecols=[0,1])
-		counter += 1
+        counter = 0
+        for i in range(2*key+1,2*key+3):
+                k_wb[key][counter],Pk_wb[key][counter] = loadtxt('mp/wb%s_m%s.dat' %(i,key), unpack = True, usecols=[0,1])
+                k_wc[key][counter],Pk_wc[key][counter] = loadtxt('mp/wc%s_m%s.dat' %(i,key), unpack = True, usecols=[0,1])
+                k_wa[key][counter],Pk_wa[key][counter] = loadtxt('mp/wa%s_m%s.dat' %(i,key), unpack = True, usecols=[0,1])
+                k_ns[key][counter],Pk_ns[key][counter] = loadtxt('mp/ns%s_m%s.dat' %(i,key), unpack = True, usecols=[0,1])
+                k_h[key][counter],Pk_h[key][counter] = loadtxt('mp/h%s_m%s.dat' %(i,key), unpack = True, usecols=[0,1])
+                k[key][counter],Pk[key][counter] = loadtxt('mp/m%s.dat' %(key), unpack = True, usecols=[0,1])
+                counter += 1
 
-def fin_deriv(k,Pk_param_dict,step_size,param_value):
-	param_deriv = {key:[(param_dict[key][1][i]-param_dict[key][0][i])/(step_size*param_value) for i in range(len(param_dict[key][0]))] for key in range(len(k))}
-	return param_deriv
 
-#Computes the derivatives with respect to each variable
-wb_deriv = {key:[(Pk_wb[key][1][i]-Pk_wb[key][0][i])/(fin_epsilon[0]*central_values[0]) for i in range(len(Pk_wb[key][0]))] for key in range(len(k))}
-wc_deriv = {key:[(Pk_wc[key][1][i]-Pk_wc[key][0][i])/(fin_epsilon[1]*central_values[1]) for i in range(len(Pk_wc[key][0]))] for key in range(len(k))}
-wa_deriv = {key:[(Pk_wa[key][1][i]-Pk_wa[key][0][i])/(fin_epsilon[2]*central_values[2]) for i in range(len(Pk_wa[key][1]))] for key in range(len(k))}
-ns_deriv = {key:[(Pk_ns[key][1][i]-Pk_ns[key][0][i])/(fin_epsilon[3]*central_values[3]) for i in range(len(Pk_ns[key][0]))] for key in range(len(k))}
-h_deriv = {key:[(Pk_h[key][1][i]-Pk_h[key][0][i])/(fin_epsilon[4]*central_values[4]) for i in range(len(Pk_h[key][0]))] for key in range(len(k))}
-
-wb_deriv1 = fin_deriv(k,Pk_wb,fin_epsilon[0],central_values[0])
-print wb_deriv
-print wb_deriv1
-"""
 #Survey parameters
 n = 0.0001
 kmax = 0.11
@@ -175,4 +169,17 @@ wc_variance = [np.sqrt(inverted_dict[key][1][1]) for key in k_wb]
 wa_variance = [np.sqrt(inverted_dict[key][2][2]) for key in k_wb]
 ns_variance = [np.sqrt(inverted_dict[key][3][3]) for key in k_wb]
 h_variance = [np.sqrt(inverted_dict[key][4][4]) for key in k_wb]
+
+fig,ax = plt.subplots()
+ax.plot(k_wb[50][0],wb_deriv[50],label = 'wb')
+ax.plot(k_wc[50][0],wc_deriv[50],label = 'wc')
+#ax.plot(k_wa[50][0],wa_deriv[50],label = 'wa')
+ax.plot(k_ns[50][0],ns_deriv[50],label = 'ns')
+ax.plot(k_h[50][0],h_deriv[50],label = 'h')
+ax.set_xlim(0.0001,1.0)
+ax.set_xscale('log')
+plt.legend(frameon = False, loc = 'lower left')
+plt.savefig('test.png')
+subprocess.call('open test.png',shell = True)
+plt.close('all')
 """
