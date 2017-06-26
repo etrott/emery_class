@@ -1,6 +1,5 @@
-#rewrite data import as 3d array
-#rewrite derivatives using np.diff
-
+#add 3d interpolation of in-range derivatives
+#initial fisher code  swaps the ns and h denominators in the derivative step (fixed here)
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -48,17 +47,17 @@ c = np.arange(2,201,2)
 
 epsilon_matrix = np.asarray(np.repeat(new_fin_epsilon,100)).reshape(2,100,1)
 param_matrix = np.asarray(np.repeat(new_central_values,100)).reshape(2,100,1)
-print epsilon_matrix
-print np.shape(epsilon_matrix)
 
 k_low = []
 Pk_low = []
 for i in range(len(b)):
 	k_low.append(loadtxt('/Users/etrott12/Dropbox/emery/axionCAMB/mp/wb%s_m%s.dat' %(b[i],a[i]), usecols = [0]))
 	Pk_low.append(loadtxt('/Users/etrott12/Dropbox/emery/axionCAMB/mp/wb%s_m%s.dat' %(b[i],a[i]), usecols = [1]))
+
 for i in range(len(b)):
+        k_low.append(loadtxt('/Users/etrott12/Dropbox/emery/axionCAMB/mp/ns%s_m%s.dat' %(b[i],a[i]), usecols = [0]))
 	Pk_low.append(loadtxt('/Users/etrott12/Dropbox/emery/axionCAMB/mp/ns%s_m%s.dat' %(b[i],a[i]), usecols = [1]))
-k_low = np.asarray(k_low)
+k_low = np.asarray(k_low).reshape(2,100,551)
 Pk_low =np.asarray(Pk_low).reshape(2,100,551)
 
 k_high = []
@@ -77,59 +76,43 @@ def fin_deriv(Pk_high,Pk_low,central_value,step_size):
 	return param_deriv
 
 deriv = fin_deriv(Pk_high,Pk_low,param_matrix,epsilon_matrix)
-print np.shape(deriv)
+
+"""
 plt.plot(k_high[1][0],deriv[1][0])
 plt.xlim(0.0001,1.0)
 plt.xscale('log')
 plt.savefig('test_deriv.png')
 subprocess.call('open test_deriv.png',shell = True)
 """
-even = np.arange(0,len(Pk),2)
-odd = np.arange(1,len(Pk)+1,2)
 
-#test = [[np.subtract(Pk[i][even[j]],Pk[i][odd[j]]) for j in range(len(Pk[i]))] for i in range(len(Pk))]
-#for i in range(len(Pk)):
-#print test
 
-#Initializes finite difference power spectrum dictionaries
-k_wb = {key:{i:[] for i in range(2*len(fin_varied[1]))} for key in range(len(masses))}
-Pk_wb = {key:{i:[] for i in range(2*len(fin_varied[1]))} for key in range(len(masses))}
-k_wc = {key:{i:[] for i in range(2*len(fin_varied[1]))} for key in range(len(masses))}
-Pk_wc = {key:{i:[] for i in range(2*len(fin_varied[1]))} for key in range(len(masses))}
-k_wa = {key:{i:[] for i in range(2*len(fin_varied[1]))} for key in range(len(masses))}
-Pk_wa = {key:{i:[] for i in range(2*len(fin_varied[1]))} for key in range(len(masses))}
-k_ns = {key:{i:[] for i in range(2*len(fin_varied[1]))} for key in range(len(masses))}
-Pk_ns = {key:{i:[] for i in range(2*len(fin_varied[1]))} for key in range(len(masses))}
-k_h = {key:{i:[] for i in range(2*len(fin_varied[1]))} for key in range(len(masses))}
-Pk_h = {key:{i:[] for i in range(2*len(fin_varied[1]))} for key in range(len(masses))}
-k = {key:{i:[] for i in range(2*len(fin_varied[1]))} for key in range(len(masses))}
-Pk = {key:{i:[] for i in range(2*len(fin_varied[1]))} for key in range(len(masses))}
-
-#Fills the finite difference power spectrum dictionaries
-for key in k:
-        counter = 0
-        for i in range(2*key+1,2*key+3):
-                k_wb[key][counter],Pk_wb[key][counter] = loadtxt('mp/wb%s_m%s.dat' %(i,key), unpack = True, usecols=[0,1])
-                k_wc[key][counter],Pk_wc[key][counter] = loadtxt('mp/wc%s_m%s.dat' %(i,key), unpack = True, usecols=[0,1])
-                k_wa[key][counter],Pk_wa[key][counter] = loadtxt('mp/wa%s_m%s.dat' %(i,key), unpack = True, usecols=[0,1])
-                k_ns[key][counter],Pk_ns[key][counter] = loadtxt('mp/ns%s_m%s.dat' %(i,key), unpack = True, usecols=[0,1])
-                k_h[key][counter],Pk_h[key][counter] = loadtxt('mp/h%s_m%s.dat' %(i,key), unpack = True, usecols=[0,1])
-                k[key][counter],Pk[key][counter] = loadtxt('mp/m%s.dat' %(key), unpack = True, usecols=[0,1])
-                counter += 1
 
 
 #Survey parameters
 n = 0.0001
 kmax = 0.11
-#kmax = 0.2
 V_survey = 1.0
-kmin = 2*math.pi/(((V_survey)**(1/3))*1000)
+kmin = 2*np.pi/(((V_survey)**(1/3))*1000)
 #Limits the wavenumbers to kmin < k < kmax
-k_in_range = {key:[k[key][1][i] for i in range(len(k[key][1])) if kmin < k[key][1][i] < kmax] for key in k}
+#bool = k_low > kmin, k_low < kmax
+bool = np.logical_and(np.greater(k_low,kmin),np.less(k_low,kmax))
+k_ir = k_low[bool].reshape(2,100,143)
+deriv_ir = deriv[bool].reshape(2,100,143)
+#k_ir = k_low[np.all([k_low > kmin, k_low < kmax])]
+#deriv_ir = deriv[np.all([k_low > kmin, k_low < kmax])]
+#even_k = np.linspace(k_ir[0][0][0],k_ir[0][0][-1],len(k_low[0][0])).reshape(1,1,551)
+#deriv_int = np.interp(even_k,k_ir,deriv_ir)
+#print np.shape(deriv_int)
+#print deriv_int
+
+
+#k_in_range = {key:[k[key][1][i] for i in range(len(k[key][1])) if kmin < k[key][1][i] < kmax] for key in k}
 #Creates evenly spaced wavenumbers in the range kmin < k < kmax
-even_k_grid = {key:np.linspace(kmin,kmax,len(k_in_range[key])) for key in k}
+#even_k_grid = {key:np.linspace(kmin,kmax,len(k_in_range[key])) for key in k}
 #Selects the Pk's that correspond to the relevant k's
-Pk_in_range = {key:[Pk[key][1][i] for i in range(len(k[key][1])) if kmin < k[key][1][i] < kmax] for key in k_wb}
+#Pk_in_range = {key:[Pk[key][1][i] for i in range(len(k[key][1])) if kmin < k[key][1][i] < kmax] for key in k_wb}
+
+"""
 #Interpolates the Pk's to occur at the evenly spaced k's specified in even_k_grid
 Pk_in_range = {key:np.interp(even_k_grid[key],k_in_range[key],Pk_in_range[key]) for key in k_wb}
 #Computes the effective survey volume given by eq.10 of Seo & Eisenstein 2003
@@ -177,17 +160,4 @@ wc_variance = [np.sqrt(inverted_dict[key][1][1]) for key in k_wb]
 wa_variance = [np.sqrt(inverted_dict[key][2][2]) for key in k_wb]
 ns_variance = [np.sqrt(inverted_dict[key][3][3]) for key in k_wb]
 h_variance = [np.sqrt(inverted_dict[key][4][4]) for key in k_wb]
-
-fig,ax = plt.subplots()
-ax.plot(k_wb[50][0],wb_deriv[50],label = 'wb')
-ax.plot(k_wc[50][0],wc_deriv[50],label = 'wc')
-#ax.plot(k_wa[50][0],wa_deriv[50],label = 'wa')
-ax.plot(k_ns[50][0],ns_deriv[50],label = 'ns')
-ax.plot(k_h[50][0],h_deriv[50],label = 'h')
-ax.set_xlim(0.0001,1.0)
-ax.set_xscale('log')
-plt.legend(frameon = False, loc = 'lower left')
-plt.savefig('test.png')
-subprocess.call('open test.png',shell = True)
-plt.close('all')
 """
