@@ -39,42 +39,50 @@ for key in fin_varied:
 #Creates a list of masses even space in log-space
 masses = np.logspace(-24,-30,100)
 
+new_fin_epsilon = [0.05585344057193923,0.026041666666666668]
+new_central_values = [0.02238,0.96]
 
 a = np.arange(0,100,1)
 b = np.arange(1,201,2)
 c = np.arange(2,201,2)
 
+epsilon_matrix = np.asarray(np.repeat(new_fin_epsilon,100)).reshape(2,100,1)
+param_matrix = np.asarray(np.repeat(new_central_values,100)).reshape(2,100,1)
+print epsilon_matrix
+print np.shape(epsilon_matrix)
 
 k_low = []
 Pk_low = []
 for i in range(len(b)):
 	k_low.append(loadtxt('/Users/etrott12/Dropbox/emery/axionCAMB/mp/wb%s_m%s.dat' %(b[i],a[i]), usecols = [0]))
 	Pk_low.append(loadtxt('/Users/etrott12/Dropbox/emery/axionCAMB/mp/wb%s_m%s.dat' %(b[i],a[i]), usecols = [1]))
+for i in range(len(b)):
+	Pk_low.append(loadtxt('/Users/etrott12/Dropbox/emery/axionCAMB/mp/ns%s_m%s.dat' %(b[i],a[i]), usecols = [1]))
 k_low = np.asarray(k_low)
-Pk_low =np.asarray(Pk_low)
+Pk_low =np.asarray(Pk_low).reshape(2,100,551)
 
 k_high = []
 Pk_high = []
 for i in range(len(c)):
         k_high.append(loadtxt('/Users/etrott12/Dropbox/emery/axionCAMB/mp/wb%s_m%s.dat' %(c[i],a[i]), usecols = [0]))
         Pk_high.append(loadtxt('/Users/etrott12/Dropbox/emery/axionCAMB/mp/wb%s_m%s.dat' %(c[i],a[i]), usecols = [1]))
-k_high =np.asarray(k_high)
-Pk_high =np.asarray(Pk_high)
+for i in range(len(c)):
+	k_high.append(loadtxt('/Users/etrott12/Dropbox/emery/axionCAMB/mp/ns%s_m%s.dat' %(c[i],a[i]), usecols = [0]))
+        Pk_high.append(loadtxt('/Users/etrott12/Dropbox/emery/axionCAMB/mp/ns%s_m%s.dat' %(c[i],a[i]), usecols = [1]))
+k_high =np.asarray(k_high).reshape(2,100,551)
+Pk_high =np.asarray(Pk_high).reshape(2,100,551)
 
-Pk_diff = Pk_high-Pk_low
-
-
-def fin_deriv(Pk_high,Pk_low,param_num):
-	param_deriv = (Pk_high-Pk_low)/(fin_epsilon[param_num]*central_values[param_num])
+def fin_deriv(Pk_high,Pk_low,central_value,step_size):
+	param_deriv = (Pk_high-Pk_low)/(central_value*step_size)
 	return param_deriv
 
-#def fin_deriv(k,param_dict,step_size,param_value):
-#	param_deriv = {key:[(param_dict[key][1][i]-param_dict[key][0][i])/(step_size*param_value) for i in range(len(param_dict[key][0]))] for key in range(len(k))}
-#	return param_deriv
-
-wb_deriv = fin_deriv(Pk_high,Pk_low,0)
-print wb_deriv
-
+deriv = fin_deriv(Pk_high,Pk_low,param_matrix,epsilon_matrix)
+print np.shape(deriv)
+plt.plot(k_high[1][0],deriv[1][0])
+plt.xlim(0.0001,1.0)
+plt.xscale('log')
+plt.savefig('test_deriv.png')
+subprocess.call('open test_deriv.png',shell = True)
 """
 even = np.arange(0,len(Pk),2)
 odd = np.arange(1,len(Pk)+1,2)
