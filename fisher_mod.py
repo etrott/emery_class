@@ -77,57 +77,38 @@ def fin_deriv(Pk_high,Pk_low,central_value,step_size):
 
 deriv = fin_deriv(Pk_high,Pk_low,param_matrix,epsilon_matrix)
 
+#Survey parameters
+n = np.asarray(0.0001).reshape(1,1,1)
+kmax = 0.11
+V_survey = np.asarray(1.0).reshape(1,1,1)
+kmin = 2*np.pi/(((V_survey)**(1/3))*1000)
+#Limits the wavenumbers to kmin < k < kmax
+bool = np.logical_and(np.greater(k_low,kmin),np.less(k_low,kmax))
+k_ir = k_low[bool].reshape(2,100,143)
+Pk_ir = Pk_low[bool].reshape(2,100,143)
+deriv_ir = deriv[bool].reshape(2,100,143)
+
 """
-plt.plot(k_high[1][0],deriv[1][0])
+k_ir = k_low[np.all([k_low > kmin, k_low < kmax])]
+deriv_ir = deriv[np.all([k_low > kmin, k_low < kmax])]
+even_k = np.linspace(k_ir[0][0][0],k_ir[0][0][-1],len(k_low[0][0]))
+deriv_int = np.interp(even_k,k_ir,deriv_ir)
+test = []
+for i in range(len(deriv)):
+	for j in range(len(deriv[i])):
+		test.append(np.interp(even_k,k_ir[i][j],deriv_ir[i][j]))
+test = np.asarray(test).reshape(2,100,551)
+
+plt.plot(k_ir[1][0],deriv_ir[1][0])
 plt.xlim(0.0001,1.0)
 plt.xscale('log')
 plt.savefig('test_deriv.png')
 subprocess.call('open test_deriv.png',shell = True)
 """
 
-
-
-
-#Survey parameters
-n = 0.0001
-kmax = 0.11
-V_survey = 1.0
-kmin = 2*np.pi/(((V_survey)**(1/3))*1000)
-#Limits the wavenumbers to kmin < k < kmax
-#bool = k_low > kmin, k_low < kmax
-bool = np.logical_and(np.greater(k_low,kmin),np.less(k_low,kmax))
-k_ir = k_low[bool].reshape(2,100,143)
-deriv_ir = deriv[bool].reshape(2,100,143)
-#k_ir = k_low[np.all([k_low > kmin, k_low < kmax])]
-#deriv_ir = deriv[np.all([k_low > kmin, k_low < kmax])]
-#even_k = np.linspace(k_ir[0][0][0],k_ir[0][0][-1],len(k_low[0][0])).reshape(1,1,551)
-#deriv_int = np.interp(even_k,k_ir,deriv_ir)
-#print np.shape(deriv_int)
-#print deriv_int
-
-
-#k_in_range = {key:[k[key][1][i] for i in range(len(k[key][1])) if kmin < k[key][1][i] < kmax] for key in k}
-#Creates evenly spaced wavenumbers in the range kmin < k < kmax
-#even_k_grid = {key:np.linspace(kmin,kmax,len(k_in_range[key])) for key in k}
-#Selects the Pk's that correspond to the relevant k's
-#Pk_in_range = {key:[Pk[key][1][i] for i in range(len(k[key][1])) if kmin < k[key][1][i] < kmax] for key in k_wb}
-
-"""
-#Interpolates the Pk's to occur at the evenly spaced k's specified in even_k_grid
-Pk_in_range = {key:np.interp(even_k_grid[key],k_in_range[key],Pk_in_range[key]) for key in k_wb}
 #Computes the effective survey volume given by eq.10 of Seo & Eisenstein 2003
-V_eff = {key:[np.square(((n*Pk_in_range[key][i])/(n*Pk_in_range[key][i]+1)))*((1000**3)*V_survey) for i in range(len(Pk_in_range[key]))] for key in k_wb}
-#Selects the parameter derivative values that occure within kmin < k < kmax, then interpolates to match with  even_k_grid k's
-wb_deriv_in_range = {key:[wb_deriv[key][i] for i in range(len(wb_deriv[key])) if kmin < k_wb[key][1][i] < kmax] for key in k_wb}
-wb_deriv_in_range = {key:np.interp(even_k_grid[key],k_in_range[key],wb_deriv_in_range[key]) for key in k_wb}
-wc_deriv_in_range = {key:[wc_deriv[key][i] for i in range(len(wc_deriv[key])) if kmin < k_wc[key][1][i] < kmax] for key in k_wb}
-wc_deriv_in_range = {key:np.interp(even_k_grid[key],k_in_range[key],wc_deriv_in_range[key]) for key in k_wb}
-wa_deriv_in_range = {key:[wa_deriv[key][i] for i in range(len(wa_deriv[key])) if kmin < k_wa[key][1][i] < kmax] for key in k_wb}
-wa_deriv_in_range = {key:np.interp(even_k_grid[key],k_in_range[key],wa_deriv_in_range[key]) for key in k_wb}
-ns_deriv_in_range = {key:[ns_deriv[key][i] for i in range(len(ns_deriv[key])) if kmin < k_ns[key][1][i] < kmax] for key in k_wb}
-ns_deriv_in_range = {key:np.interp(even_k_grid[key],k_in_range[key],ns_deriv_in_range[key]) for key in k_wb}
-h_deriv_in_range = {key:[h_deriv[key][i] for i in range(len(h_deriv[key])) if kmin < k_h[key][1][i] < kmax] for key in k_wb}
-h_deriv_in_range = {key:np.interp(even_k_grid[key],k_in_range[key],h_deriv_in_range[key]) for key in k_wb}
+V_eff = np.square((n*Pk_ir)/(n*Pk_ir+1))*V_survey
+"""
 #Computes the uniform step size between k's
 dk = {key:(kmax-kmin)/(len(k_in_range[key])-1) for key in k_wb}
 #Initializes an empty matrix for each mass that will become the fisher matrices
