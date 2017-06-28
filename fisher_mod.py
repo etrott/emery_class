@@ -1,4 +1,3 @@
-#add 3d interpolation of in-range derivatives
 #initial fisher code  swaps the ns and h denominators in the derivative step (fixed here)
 
 import matplotlib.pyplot as plt
@@ -48,12 +47,22 @@ c = np.arange(2,201,2)
 epsilon_matrix = np.asarray(np.repeat(new_fin_epsilon,100)).reshape(2,100,1)
 param_matrix = np.asarray(np.repeat(new_central_values,100)).reshape(2,100,1)
 
+def load(param_string,param_index_list,mass_index_list):
+	k = []
+	Pk = []
+	for i in range(len(param_index_list)):
+		k.append(loadtxt('/Users/etrott12/Dropbox/emery/axionCAMB/mp/%s%s_m%s.dat' %(param_string,param_index_list[i],mass_index_list[i]), usecols = [0]))
+		Pk.append(loadtxt('/Users/etrott12/Dropbox/emery/axionCAMB/mp/%s%s_m%s.dat' %(param_string,param_index_list[i],mass_index_list[i]), usecols = [1]))
+	return k,Pk
+
 k_low = []
 Pk_low = []
 for i in range(len(b)):
 	k_low.append(loadtxt('/Users/etrott12/Dropbox/emery/axionCAMB/mp/wb%s_m%s.dat' %(b[i],a[i]), usecols = [0]))
 	Pk_low.append(loadtxt('/Users/etrott12/Dropbox/emery/axionCAMB/mp/wb%s_m%s.dat' %(b[i],a[i]), usecols = [1]))
-
+"""
+k_low,Pk_low = load('wb',b,a)
+"""
 for i in range(len(b)):
         k_low.append(loadtxt('/Users/etrott12/Dropbox/emery/axionCAMB/mp/ns%s_m%s.dat' %(b[i],a[i]), usecols = [0]))
 	Pk_low.append(loadtxt('/Users/etrott12/Dropbox/emery/axionCAMB/mp/ns%s_m%s.dat' %(b[i],a[i]), usecols = [1]))
@@ -108,37 +117,29 @@ subprocess.call('open test_deriv.png',shell = True)
 
 #Computes the effective survey volume given by eq.10 of Seo & Eisenstein 2003
 V_eff = np.square((n*Pk_ir)/(n*Pk_ir+1))*V_survey
-"""
-#Computes the uniform step size between k's
-dk = {key:(kmax-kmin)/(len(k_in_range[key])-1) for key in k_wb}
-#Initializes an empty matrix for each mass that will become the fisher matrices
-matrix_dict = {key:np.zeros((5,5)) for key in k_wb}
-#Initializes a dictionary whose keys are mass runs, then each mass has empty lists to be filled by each parameter
-in_range_dict = {key:{i:[] for i in range(len(central_values))} for key in k_wb}
+dk = k_ir[0][0][1]-k_ir[0][0][0]
 
-#Fills in_range_dict -- key loops through the masses, and then each mass has 5 sub-entries, one for each parameter
-for key in in_range_dict:
-	in_range_dict[key][0] = wb_deriv_in_range[key]
-	in_range_dict[key][1] = wc_deriv_in_range[key]
-	in_range_dict[key][2] = wa_deriv_in_range[key]
-	in_range_dict[key][3] = ns_deriv_in_range[key]
-	in_range_dict[key][4] = h_deriv_in_range[key]
+k_matrix = k_ir[0].reshape(1,100,143)
 
-#Uses the entries in in_range_dict to fill the fisher matrix
-for key in in_range_dict:
-	for m in range(len(in_range_dict[1])):
-		for n in range(len(in_range_dict[1])):
-			matrix_dict[key][m][n] = np.trapz([in_range_dict[key][m][i]*in_range_dict[key][n][i]*V_eff[key][i]*np.square(k_in_range[key][i])/(4*np.square(math.pi)*np.square(Pk_in_range[key][i])) for i in range(len(k_in_range[key]))],k_in_range[key],dk[key])
+matrix = []
+for i in range(len(deriv_ir)):
+	for j in range(len(deriv_ir)):
+		matrix.append(np.trapz(deriv_ir[i]*deriv_ir[j]*V_eff[i]*np.square(k_ir[0])/(4*np.pi**2),k_matrix,dk))
+matrix = np.transpose(matrix).reshape(100,2,2)
+invert = []
+for i in range(100):
+	invert.append(np.dot(np.linalg.inv(np.linalg.cholesky(matrix[i]).transpose()),np.linalg.inv(np.linalg.cholesky(matrix[i]))))
+new = np.reshape(invert,(100,4)).transpose()
 
-#Cholesky decomposition to invert the fisher matrices (matrix_dict) and obtain the error matrices
-#Cannot perform a simple np.invert because the fisher matrices are ill-conditioned
-inverted_dict = {key:np.dot(np.linalg.inv(np.linalg.cholesky(matrix_dict[key]).transpose()),np.linalg.inv(np.linalg.cholesky(matrix_dict[key]))) for key in k_wb}
-
-#Dictionary of the variance of each parameter: key for each parameter, then a mass run entries for each
-variance_dict = {i+1:[np.sqrt(inverted_dict[key][i][i]) for key in k_wb] for i in range(len(central_values))}
-wb_variance = [np.sqrt(inverted_dict[key][0][0]) for key in k_wb]
-wc_variance = [np.sqrt(inverted_dict[key][1][1]) for key in k_wb]
-wa_variance = [np.sqrt(inverted_dict[key][2][2]) for key in k_wb]
-ns_variance = [np.sqrt(inverted_dict[key][3][3]) for key in k_wb]
-h_variance = [np.sqrt(inverted_dict[key][4][4]) for key in k_wb]
-"""
+plt.plot(masses,np.sqrt(new[0]),color = 'r',marker = '_',label = r'$\omega_b$')
+plt.plot(masses,np.sqrt(new[3]),color ='b',marker = '_',label= r'$n_s$')
+plt.fill_between(masses,np.sqrt(new[0]),alpha = 0.4,color = 'r')
+plt.fill_between(masses,np.sqrt(new[3]),alpha = 0.4,color = 'b')
+plt.xscale('log')
+plt.yscale('log')
+plt.xlabel(r'mass (eV)')
+plt.ylabel(r'$1\sigma$')
+plt.title('Forecasted Constraints')
+plt.legend(frameon = False, loc = 'upper right')
+plt.savefig('test_deriv.png')
+subprocess.call('open test_deriv.png',shell = True)
