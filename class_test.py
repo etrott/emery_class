@@ -19,7 +19,7 @@ fin_epsilon_definite = [0.00125,0.005,0.08]
 #Converts the step sizes to fractional step sizes
 fin_epsilon = [fin_epsilon_definite[i]/central_values[i] for i in range(len(fin_epsilon_definite))]
 #Creates a list of masses even space in log-space
-#masses = np.logspace(-24,-30,10)
+masses = np.logspace(-24,-30,10)
 ell = np.arange(0,2501).reshape(1,2501)
 param_matrix = np.asarray(central_values).reshape(len(param_list),1)
 epsilon_matrix = np.asarray(fin_epsilon).reshape(len(param_list),1)

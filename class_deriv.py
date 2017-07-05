@@ -45,6 +45,17 @@ for i in range(len(central_values)):
 fin_matrix = np.reshape(fin_matrix,(len(central_values),len(fin_epsilon),2))
 poly_matrix = np.reshape(poly_matrix,(len(central_values),num_points))
 
+cv_matrix = []
+for i in range(len(central_values)):
+    cv_matrix.append(np.repeat(central_values[i],len(fin_epsilon)))
+cv_matrix = np.reshape(cv_matrix,(len(central_values),len(fin_epsilon)))
+
+epsilon_matrix = []
+for i in range(len(fin_epsilon)):
+    epsilon_matrix.append(np.repeat(fin_epsilon[i],len(fin_epsilon)))
+epsilon_matrix = np.reshape(epsilon_matrix,(len(fin_epsilon),len(fin_epsilon)))
+print epsilon_matrix,np.shape(epsilon_matrix)
+"""
 print np.shape(fin_matrix)
 print np.shape(poly_matrix)
 
@@ -57,8 +68,8 @@ for i in range(len(central_values)):
         fin_high.append(run_CLASS(param_list[i],fin_matrix[i][k][1]))
     for j in range(num_points):
         poly.append(run_CLASS(param_list[i],poly_matrix[i][k]))
-fin_low = np.reshape(fin_low,(len(central_values),fin_epsilon))
-fin_high = np.reshape(fin_high,(len(central_values),fin_epsilon))
+fin_low = np.reshape(fin_low,(len(central_values),len(fin_epsilon)))
+fin_high = np.reshape(fin_high,(len(central_values),len(fin_epsilon)))
 poly = np.reshape(poly,len(central_values),num_points))
 
 np.save('fin_low',fin_low)
@@ -68,48 +79,15 @@ np.save('poly',poly)
 fin_low = np.load('fin_low.npy')
 fin_high = np.load('fin_high.npy')
 poly = np.load('poly.npy')
-
 """
-def load_poly(param_string_list,param_index_list):
-        k_poly = []
-        Pk_poly = []
-        for j in range(len(param_string_list)):
-                for i in range(len(param_index_list)):
-                        k_poly.append(loadtxt('/Users/etrott12/Dropbox/emery/cambAxion4/poly_%s%s.dat' %(param_string_list[j],param_index_list[i]), usecols = [0]))
-                        Pk_poly.append(loadtxt('/Users/etrott12/Dropbox/emery/cambAxion4/poly_%s%s.dat' %(param_string_list[j],param_index_list[i]), usecols = [1]))
-#        k_poly = np.reshape(k_poly,(len(param_string_list),14,551))
-#        Pk_poly = np.reshape(Pk_poly,(len(param_string_list),14,551))
-        return k_poly,Pk_poly
-
-def load_fin(param_string_list,param_index_list):
-        k_fin = []
-        Pk_fin = []
-        for j in range(len(param_string_list)):
-                for i in range(len(param_index_list)):
-                        k_fin.append(loadtxt('/Users/etrott12/Dropbox/emery/cambAxion4/fin_%s%s.dat' %(param_string_list[j],param_index_list[i]), usecols = [0]))
-                        Pk_fin.append(loadtxt('/Users/etrott12/Dropbox/emery/cambAxion4/fin_%s%s.dat' %(param_string_list[j],param_index_list[i]), usecols = [1]))
-#        k_fin = np.reshape(k_fin,(len(param_string_list),14,551))
-#        Pk_fin = np.reshape(Pk_fin,(len(param_string_list),14,551))
-        return k_fin,Pk_fin
-
-k_poly,Pk_poly = load_poly(['h'],np.arange(1,15))
-k_low,Pk_low = np.asarray(load_fin(['h'],np.arange(1,15,2)))
-k_high,Pk_high = np.asarray(load_fin(['h'],np.arange(2,15,2)))
-
-#print Pk_low,Pk_high
-#print central_values[1], fin_epsilon[1]
 
 def fin_deriv(Pk_high,Pk_low,central_value,step_size):
-        param_deriv = (Pk_high-Pk_low)
-	#/(central_value*step_size)
+        param_deriv = (Pk_high-Pk_low)/(central_value*step_size)
         return param_deriv
 
-fin_deriv = fin_deriv(Pk_high,Pk_low,central_values[1],fin_epsilon[1])
+#fin_deriv = fin_deriv(Pk_high,Pk_low,cv_matrix,epsilon_matrix)
 #print fin_deriv,np.shape(fin_deriv)
 
-k_sorted = np.transpose(fin_deriv)
-#plt.plot(k_fin,k_sorted)
-"""
 """
 k_max_list = []
 for i in range(len(k_H_fin[1])):
