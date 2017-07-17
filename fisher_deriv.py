@@ -72,15 +72,40 @@ def run_fisher(param,mass,cv,delta,num,deg,run = 'False'):
     ell = np.transpose(ell,(0,2,1))
     cl_tt = np.transpose(cl_tt,(0,2,1))
 
-    def poly_fit(x,y,deg):
-        poly = []
-        for i in range(len(y)):
-            for j in range(len(y[i])):
-                poly.append(np.polyfit(x[i],y[i][j],deg))
-        poly = np.reshape(poly,(len(y),len(y[0]),deg+1))
-        return poly
+    def deriv(cl):
+        poly_coeff = poly_fit(span,cl,deg)
+        #print poly_coeff
+        deriv_coeff = []
+        for i in range(len(poly_coeff)):
+            for j in range(len(poly_coeff[i])):
+                deriv_coeff.append(np.poly1d(np.polyder(poly_coeff[i][j])))
+        #deriv_coeff = np.reshape(deriv_coeff,(len(poly_coeff),len(poly_coeff[0]),len(poly_coeff[0][0])-1))
+        deriv_coeff = np.reshape(deriv_coeff,(len(poly_coeff),len(poly_coeff[0]),1))
+        #print deriv_coeff
+        deriv = []
+        for i in range(len(deriv_coeff)):
+            for j in range(len(deriv_coeff[i])):
+                deriv.append(deriv_coeff[i][j][0](span[i][12]))
+        deriv = np.reshape(deriv,(len(deriv_coeff),len(deriv_coeff[0])))
+        return deriv
 
-    print np.shape(poly_fit(span,cl_tt,deg))
+    deriv = deriv(cl_tt)
+
+    def plot(x,y):
+        y_mod = x*(x+1.0)*y/(2*np.pi)
+        param_labels = ['\omega_b','\omega_{cdm}','H_0']
+        fig,ax = plt.subplots()
+        for i in range(len(deriv)):
+            ax.plot(x[0],y[i],label = r'$%s$' %(param_labels[i]))
+#        plt.yscale('log')
+        plt.xlabel(r'$l$')
+        plt.ylabel(r'$\partial{C_l^{TT}}/\partial{p}$')
+        plt.title(r'CMB Power Spectrum Derivatives')
+        plt.legend(frameon = False, loc = 'upper right')
+        plt.savefig('deriv.pdf')
+        subprocess.call('open deriv.pdf',shell = True)
+
+    plot(ell[:,:,12],deriv)
 
 #next step -- figure out a generalized way (i.e. for any degree fit) to convert the coefficients into derivatives
 
