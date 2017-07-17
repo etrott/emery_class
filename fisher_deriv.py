@@ -46,7 +46,6 @@ def run_fisher(param,mass,cv,delta,num,deg,run = 'False'):
     runs = np.reshape([cv_floats]*len(cv_floats)*num,(len(cv_floats),num,len(cv_floats)))
     for i in range(len(runs)):
         runs[i][:,i] = span[i]
-    print runs
 
     def save():
         ell = []
@@ -82,7 +81,7 @@ def run_fisher(param,mass,cv,delta,num,deg,run = 'False'):
         return ell,cl_tt,cl_te,cl_ee
 
     ell,cl_tt,cl_te,cl_ee = load()
-
+    
     ell = np.transpose(ell,(0,2,1))
     cl_tt = np.transpose(cl_tt,(0,2,1))
     cl_te = np.transpose(cl_te,(0,2,1))
@@ -98,14 +97,11 @@ def run_fisher(param,mass,cv,delta,num,deg,run = 'False'):
 
     def deriv(cl):
         poly_coeff = poly_fit(span,cl,deg)
-#        print poly_coeff
         deriv_coeff = []
         for i in range(len(poly_coeff)):
             for j in range(len(poly_coeff[i])):
                 deriv_coeff.append(np.poly1d(np.polyder(poly_coeff[i][j])))
-#    deriv_coeff = np.reshape(deriv_coeff,(len(poly_coeff),len(poly_coeff[0]),len(poly_coeff[0][0])-1))
         deriv_coeff = np.reshape(deriv_coeff,(len(poly_coeff),len(poly_coeff[0]),1))
-#        print deriv_coeff
         deriv = []
         for i in range(len(deriv_coeff)):
             for j in range(len(deriv_coeff[i])):
@@ -130,6 +126,24 @@ def run_fisher(param,mass,cv,delta,num,deg,run = 'False'):
         subprocess.call('open deriv.pdf',shell = True)
 
 #    plot(ell[:,:,12],deriv)
+
+    deriv = deriv(cl_tt)
+
+    def plot(x,y):
+        y_mod = x*(x+1.0)*y/(2*np.pi)
+        param_labels = ['\omega_b','\omega_{cdm}','H_0']
+        fig,ax = plt.subplots()
+        for i in range(len(deriv)):
+            ax.plot(x[0],y[i],label = r'$%s$' %(param_labels[i]))
+#        plt.yscale('log')                                                                                                                                                                        
+        plt.xlabel(r'$l$')
+        plt.ylabel(r'$\partial{C_l^{TT}}/\partial{p}$')
+        plt.title(r'CMB Power Spectrum Derivatives')
+        plt.legend(frameon = False, loc = 'upper right')
+        plt.savefig('deriv.pdf')
+        subprocess.call('open deriv.pdf',shell = True)
+
+#    plot(ell[:,:,12],deriv)        
 
     def fisher(deriv,ell,cl,npix,sigma,theta):
         sigma = theta/np.sqrt(8*np.log(2))
