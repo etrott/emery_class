@@ -84,10 +84,15 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 25,deg = 3,run = 'False',**kwar
 
     ell,cl_tt,cl_te,cl_ee = load()
 
+    scale = np.asarray((2.7255**2)*(10**12)).reshape(1,1,1)
+
     ell = np.transpose(ell,(0,2,1))
     cl_tt = np.transpose(cl_tt,(0,2,1))
     cl_te = np.transpose(cl_te,(0,2,1))
     cl_ee = np.transpose(cl_ee,(0,2,1))
+    cl_tt = cl_tt*scale
+    cl_te = cl_te*scale
+    cl_ee = cl_ee*scale
 
     def poly_fit(x,y,deg):
         poly = []
@@ -113,31 +118,29 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 25,deg = 3,run = 'False',**kwar
         return deriv
 
     deriv_tt,deriv_te,deriv_ee = deriv(cl_tt),deriv(cl_te),deriv(cl_ee)
-    print deriv_tt[2]
 
     def plot(x,y,z):
         y_mod = x*(x+1.0)*y/(2*np.pi)
         z_mod = x*(x+1.0)*z/(2*np.pi)
         param_labels = ['\omega_b','\omega_{cdm}','H_0']
         fig,ax = plt.subplots()
-#        ax.plot(x[0],y_mod[0],label = '$TT$')
-#        ax.plot(x[0],z_mod[0],label = '$EE$')
-        for i in range(len(x)):
-            ax.plot(x[0],y_mod[i],label = r'$%s$' %(param_labels[i]))
+#        ax.plot(x[0][2:],y_mod[0][2:],label = '$TT$')
+#        ax.plot(x[0][2:],z_mod[0][2:],label = '$EE$')
+        for i in range(len(y_mod)):
+            ax.plot(x[0][2:],y_mod[i][2:],label = r'$%s$' %(param_labels[i]))
 #            ax.plot(x[0],z_mod[i],label = r'$%s$' %(param_labels[i]))
-#        plt.xscale('log')
+        plt.xscale('log')
 #        plt.yscale('log')
         plt.xlabel(r'$\ell$')
         plt.ylabel(r'$\partial{C_l^{TT}}/\partial{p}$')
 #        plt.ylabel(r'$\ell(\ell+1)C_{\ell}/2\pi$ $[\mu \rm{K}^2]$')
-#        plt.ylabel(r'$\ell(\ell+1)C_{\ell}/2\pi$')
-        plt.title(r'CMB Power Spectra')
+        plt.title(r'CMB Power Spectra Derivatives')
         plt.legend(frameon = False, loc = 'upper right')
         plt.savefig('deriv.pdf')
         subprocess.call('open deriv.pdf',shell = True)
 
 #    plot(ell[:,:,12],cl_tt[:,:,12],cl_ee[:,:,12])
-    plot(ell[:,:,12],deriv_tt,deriv_ee)
+#    plot(ell[:,:,12],deriv_tt,deriv_ee)
 
     def fisher(deriv,ell,cl,s,theta,fsky):
         ell = ell[:,:,12]
@@ -167,3 +170,8 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 25,deg = 3,run = 'False',**kwar
 
 fisher_matrix = run_fisher(['output','lensing','omega_b','omega_cdm','H0'],['tCl,pCl,lCl','yes',0.02234,0.1189,67.8],[0.00023,0.0022,1.0])
 print fisher_matrix
+cov = np.linalg.inv(fisher_matrix)
+wb = np.sqrt(cov[0][0])
+wc = np.sqrt(cov[1][1])
+h = np.sqrt(cov[2][2])
+print wb,wc,h
