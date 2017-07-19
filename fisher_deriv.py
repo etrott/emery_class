@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import subprocess
 import matplotlib as mpl
+from numpy import linalg
 
 font = {'family':'serif','weight':'normal','size':12}
 mpl.rcParams['xtick.major.size'] = 7
@@ -14,9 +15,10 @@ mpl.rcParams['ytick.major.width'] = 1
 mpl.rcParams['ytick.minor.size'] = 3
 mpl.rcParams['ytick.minor.width'] = 1
 mpl.rcParams['axes.labelsize'] = 16
-mpl.rc('font', **font)
+mpl.rc('font', **font)        
 
-def run_fisher(param,cv,delta,mass = [1.0],num = 25,deg = 3,run = 'False'):
+def run_fisher(param,cv,delta,mass = [1.0],num = 25,deg = 3,run = 'False',**kwargs):
+
     def run_CLASS(dict):
         cosmo = Class()
         cosmo.set(dict)
@@ -81,7 +83,7 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 25,deg = 3,run = 'False'):
         return ell,cl_tt,cl_te,cl_ee
 
     ell,cl_tt,cl_te,cl_ee = load()
-    
+
     ell = np.transpose(ell,(0,2,1))
     cl_tt = np.transpose(cl_tt,(0,2,1))
     cl_te = np.transpose(cl_te,(0,2,1))
@@ -94,6 +96,7 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 25,deg = 3,run = 'False'):
                 poly.append(np.polyfit(x[i],y[i][j],deg))
         poly = np.reshape(poly,(len(y),len(y[0]),deg+1))
         return poly
+
 
     def deriv(cl):
         poly_coeff = poly_fit(span,cl,deg)
@@ -109,48 +112,58 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 25,deg = 3,run = 'False'):
         deriv = np.reshape(deriv,(len(deriv_coeff),len(deriv_coeff[0])))
         return deriv
 
-    deriv = deriv(cl_tt)
+    deriv_tt,deriv_te,deriv_ee = deriv(cl_tt),deriv(cl_te),deriv(cl_ee)
+    print deriv_tt[2]
 
-    def plot(x,y):
+    def plot(x,y,z):
         y_mod = x*(x+1.0)*y/(2*np.pi)
+        z_mod = x*(x+1.0)*z/(2*np.pi)
         param_labels = ['\omega_b','\omega_{cdm}','H_0']
         fig,ax = plt.subplots()
-        for i in range(len(deriv)):
-            ax.plot(x[0],y[i],label = r'$%s$' %(param_labels[i]))
-        plt.xlabel(r'$l$')
+#        ax.plot(x[0],y_mod[0],label = '$TT$')
+#        ax.plot(x[0],z_mod[0],label = '$EE$')
+        for i in range(len(x)):
+            ax.plot(x[0],y_mod[i],label = r'$%s$' %(param_labels[i]))
+#            ax.plot(x[0],z_mod[i],label = r'$%s$' %(param_labels[i]))
+#        plt.xscale('log')
+#        plt.yscale('log')
+        plt.xlabel(r'$\ell$')
         plt.ylabel(r'$\partial{C_l^{TT}}/\partial{p}$')
-        plt.title(r'CMB Power Spectrum Derivatives')
+#        plt.ylabel(r'$\ell(\ell+1)C_{\ell}/2\pi$ $[\mu \rm{K}^2]$')
+#        plt.ylabel(r'$\ell(\ell+1)C_{\ell}/2\pi$')
+        plt.title(r'CMB Power Spectra')
         plt.legend(frameon = False, loc = 'upper right')
         plt.savefig('deriv.pdf')
         subprocess.call('open deriv.pdf',shell = True)
 
-#    plot(ell[:,:,12],deriv)
+#    plot(ell[:,:,12],cl_tt[:,:,12],cl_ee[:,:,12])
+    plot(ell[:,:,12],deriv_tt,deriv_ee)
 
-    def fisher(deriv,ell,cl,npix,sigma,theta):
-        sigma = theta/np.sqrt(8*np.log(2))
+    def fisher(deriv,ell,cl,s,theta,fsky):
         ell = ell[:,:,12]
         cl = cl[:,:,12]
-        npix = np.asarray(npix).reshape(1,1)
-        sigma = np.asarray(sigma).reshape(1,1)
+        s = np.asarray(s).reshape(1,1)
         theta = np.asarray(theta).reshape(1,1)
-        matrix = []
-#        n = 4*np.pi*np.square(sigma)/npix
-#        w = np.exp(-np.square(ell)*np.square(theta)/(16*np.log(2)))
-#        err = 2*(cl+n*np.power(w,-2))/(2*ell+1)
-#        for i in range(len(deriv)):
-#            for j in range(len(deriv[i])):
-#                if np.isinf(err[i][j]) == True:
-#                    err[i][j] = 0
-        for i in range(len(deriv)):
-            for j in range(len(deriv)):
-#                matrix.append(np.sum(deriv[i]*deriv[j]*err[i]))
-                matrix.append(np.sum(deriv[i]*deriv[j]))
-        matrix = np.reshape(matrix,(len(deriv),len(deriv)))
-        return matrix
+        #n is in units of muK-radians --> make sure that it matches with the units of C(l)
+        n = np.square(s)*np.exp(ell*(ell+1.0)*np.square(theta)/(8.0*np.log10(2.0)))
+        cl_mat = []
+        cl_mat.append([cl_tt[0,:,12][2:]+n[0][2:],cl_te[0,:,12][2:]])
+        cl_mat.append([cl_te[0,:,12][2:],cl_ee[0,:,12][2:]+n[0][2:]])
+        inv = np.linalg.inv(np.reshape(cl_mat,(2,2,2499)).transpose(2,0,1))
+        dmat = []
+        dmat.append([deriv_tt[:,2:],deriv_te[:,2:]])
+        dmat.append([deriv_te[:,2:],deriv_ee[:,2:]]) 
+        dmat = np.reshape(dmat,(2,2,3,2499)).transpose(2,3,0,1)
+        fish = []
+        for i in range(len(cv_floats)):
+            for j in range(len(cv_floats)):
+                for k in range(len(ell[0,2:])):
+                    fish.append(((2*ell[0][k]+1)*fsky/2)*np.trace(inv[k].dot(dmat[i][k].dot(inv[k]).dot(dmat[j][k]))))
+        fish = np.reshape(fish,(len(cv_floats),len(cv_floats),len(ell[0][2:])))
+        fish = np.sum(fish,axis = 2)
+        return fish
 
-    return fisher(deriv,ell,cl_tt,61,1,0.02217)
+    return fisher(deriv,ell,cl_tt,np.pi/270,7*np.pi/10800,0.75)
 
-
-fisher_matrix = run_fisher(['output','lensing','Omega_b','Omega_cdm','H0'],['tCl,pCl,lCl','yes',0.02234,0.1189,67.8],[0.00023,0.0022,1.0],run = 'False')
-#fisher_matrix = run_fisher(['output','lensing','Omega_b','Omega_cdm','H0'],[1.0],['tCl,pCl,lCl','yes',0.0222,0.1197,67.31],[0.00022,0.0012,0.67],5,3,run = 'True')
+fisher_matrix = run_fisher(['output','lensing','omega_b','omega_cdm','H0'],['tCl,pCl,lCl','yes',0.02234,0.1189,67.8],[0.00023,0.0022,1.0])
 print fisher_matrix
