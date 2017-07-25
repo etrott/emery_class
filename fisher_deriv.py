@@ -70,19 +70,19 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 25,deg = 3,run = 'False'):
         cl_tt = np.reshape(cl_tt,(len(cv_floats),num,2501))
         cl_te = np.reshape(cl_te,(len(cv_floats),num,2501))
         cl_ee = np.reshape(cl_ee,(len(cv_floats),num,2501))
-        np.save('ell',ell)
-        np.save('cl_tt',cl_tt)
-        np.save('cl_te',cl_te)
-        np.save('cl_ee',cl_ee)
+        np.save('data/ell',ell)
+        np.save('data/cl_tt',cl_tt)
+        np.save('data/cl_te',cl_te)
+        np.save('data/cl_ee',cl_ee)
 
     if run == 'True':
         save()
 
     def load():
-        ell = np.load('ell.npy')
-        cl_tt = np.load('cl_tt.npy')
-        cl_te = np.load('cl_te.npy')
-        cl_ee = np.load('cl_ee.npy')
+        ell = np.load('data/ell.npy')
+        cl_tt = np.load('data/cl_tt.npy')
+        cl_te = np.load('data/cl_te.npy')
+        cl_ee = np.load('data/cl_ee.npy')
         return ell,cl_tt,cl_te,cl_ee
     
     ell,cl_tt,cl_te,cl_ee = load()
@@ -101,11 +101,7 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 25,deg = 3,run = 'False'):
         poly = []
         for i in range(len(y)):
             for j in range(len(y[i])):
-<<<<<<< HEAD
-                poly.append(np.poly1d(np.polyfit(x[i],y[i][j],deg)))
-=======
 #                poly.append(np.poly1d(np.polyfit(x[i],y[i][j],deg)))
->>>>>>> ff49aff6a1d6f7fc5d3de8a82da0d4b560e40d16
                 poly.append(np.polyfit(x[i],y[i][j],deg))
         poly = np.reshape(poly,(len(y),len(y[0]),deg+1))
         return poly
@@ -126,11 +122,7 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 25,deg = 3,run = 'False'):
     ax.plot(span[2],cl_tt[2][2500],'ro')
     plt.show()
     """
-<<<<<<< HEAD
 
-=======
-    
->>>>>>> ff49aff6a1d6f7fc5d3de8a82da0d4b560e40d16
     def deriv(cl):
         poly_coeff = poly_fit(span,cl,deg)
         deriv_coeff = []
@@ -154,11 +146,7 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 25,deg = 3,run = 'False'):
         if deriv == False:
             ax.plot(x[0][2:],y_mod[0][2:],label = '$TT$')
         if deriv == True:
-<<<<<<< HEAD
-            ax.plot(x[2][2:],y_mod[2][2:]*67.8)
-=======
 #            ax.plot(x[2][2:],y_mod[2][2:]*67.8)
->>>>>>> ff49aff6a1d6f7fc5d3de8a82da0d4b560e40d16
             for i in range(len(y_mod)):
                 ax.plot(x[0][2:],y_mod[i][2:]*cv_floats[i],label = r'$%s$' %(param_labels[i]))
         plt.xlabel(r'$\ell$')
@@ -172,8 +160,8 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 25,deg = 3,run = 'False'):
             plt.ylabel(r'$\partial{C_l}/\partial{log(p_i)}$ $[\mu \rm{K}^2]$')
             plt.title(r'CMB Power Spectrum Derivatives')
             plt.legend(frameon = False, loc = 'upper right')
-            plt.savefig('deriv.pdf')
-            subprocess.call('open deriv.pdf',shell = True)
+            plt.savefig('plots/deriv.pdf')
+            subprocess.call('open plots/deriv.pdf',shell = True)
 
 #    plot(ell[:,:,12],cl_tt[:,:,12])
 #    plot(ell[:,:,12],deriv_tt,deriv = True)
@@ -205,10 +193,10 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 25,deg = 3,run = 'False'):
 
 fisher_matrix = run_fisher(['output','lensing','omega_b','omega_cdm','H0'],['tCl,pCl,lCl','yes',0.02234,0.1189,67.8],[0.00023,0.0022,1.0])
 cov = np.linalg.inv(fisher_matrix)
+
 wb = np.sqrt(cov[0][0])
 wc = np.sqrt(cov[1][1])
 h = np.sqrt(cov[2][2])
-print wb,wc,h
 
 alpha_3 = 3.44
 hold = [0,1,2]
@@ -223,7 +211,7 @@ for i in range(len(hold)):
 a = np.sqrt(a2)*alpha_3
 b = np.sqrt(b2)*alpha_3
 th = np.arctan(tan2th)/2.
-print a,b,th
+
 """
 plt.figure()
 ax = plt.gca()
@@ -231,6 +219,6 @@ ellipse = Ellipse(xy = (0.02234,0.1189), width = a, height = b, angle = np.rad2d
 ax.add_patch(ellipse)
 plt.xlim(0.02,0.025)
 plt.ylim(0.117,0.121)
-plt.savefig('ellipse.pdf')
-subprocess.call('open ellipse.pdf',shell = True)
+plt.savefig('plots/ellipse.pdf')
+subprocess.call('open plots/ellipse.pdf',shell = True)
 """
