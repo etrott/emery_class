@@ -100,7 +100,7 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 25,deg = 3,run = 'False'):
         poly = []
         for i in range(len(y)):
             for j in range(len(y[i])):
-#                poly.append(np.poly1d(np.polyfit(x[i],y[i][j],deg)))
+                poly.append(np.poly1d(np.polyfit(x[i],y[i][j],deg)))
                 poly.append(np.polyfit(x[i],y[i][j],deg))
         poly = np.reshape(poly,(len(y),len(y[0]),deg+1))
         return poly
@@ -113,7 +113,7 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 25,deg = 3,run = 'False'):
                     test.append(poly[i][j](span[i][k]))
         test = np.reshape(test,(3,2501,25))
         return test
-#        return poly
+        return poly
     a = poly_fit(span,cl_tt,deg)
     print a,np.shape(a)
     fig,ax = plt.subplots()
@@ -121,6 +121,7 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 25,deg = 3,run = 'False'):
     ax.plot(span[2],cl_tt[2][2500],'ro')
     plt.show()
     """
+
     def deriv(cl):
         poly_coeff = poly_fit(span,cl,deg)
         deriv_coeff = []
@@ -144,11 +145,9 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 25,deg = 3,run = 'False'):
         if deriv == False:
             ax.plot(x[0][2:],y_mod[0][2:],label = '$TT$')
         if deriv == True:
-#            ax.plot(x[2][2:],y_mod[2][2:]*67.8)
+            ax.plot(x[2][2:],y_mod[2][2:]*67.8)
             for i in range(len(y_mod)):
                 ax.plot(x[0][2:],y_mod[i][2:]*cv_floats[i],label = r'$%s$' %(param_labels[i]))
-#        plt.xscale('log')
-        #plt.yscale('log')
         plt.xlabel(r'$\ell$')
         if deriv == False:
             plt.ylabel(r'$\ell(\ell+1)C_{\ell}/2\pi$ $[\mu \rm{K}^2]$')
@@ -163,15 +162,14 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 25,deg = 3,run = 'False'):
             plt.savefig('deriv.pdf')
             subprocess.call('open deriv.pdf',shell = True)
 
-#    plot(ell[:,:,12],cl_tt[:,:,12])
-#    plot(ell[:,:,12],deriv_tt,deriv = True)
+    plot(ell[:,:,12],cl_tt[:,:,12])
+    plot(ell[:,:,12],deriv_tt,deriv = True)
 
     def fisher(deriv,ell,cl,s,theta,fsky):
         ell = ell[:,:,12]
         cl = cl[:,:,12]
         s = np.asarray(s).reshape(1,1)
         theta = np.asarray(theta).reshape(1,1)
-        #n is in units of muK-radians --> make sure that it matches with the units of C(l)
         n = np.square(s)*np.exp(ell*(ell+1.0)*np.square(theta)/(8.0*np.log10(2.0)))
         cl_mat = []
         cl_mat.append([cl_tt[0,:,12][2:]+n[0][2:],cl_te[0,:,12][2:]])
@@ -194,18 +192,12 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 25,deg = 3,run = 'False'):
 
 fisher_matrix = run_fisher(['output','lensing','omega_b','omega_cdm','H0'],['tCl,pCl,lCl','yes',0.02234,0.1189,67.8],[0.00023,0.0022,1.0])
 cov = np.linalg.inv(fisher_matrix)
-alpha_3 = 3.44
-"""
-plt.figure()
-ax = plt.gca()
-ellipse = Ellipse(xy = (0.02234,0.1189), width = a, height = b, angle = np.rad2deg(th), alpha = 0.4, lw = 2)
-ax.add_patch(ellipse)
-plt.xlim(0.02,0.025)
-plt.ylim(0.117,0.121)
-plt.savefig('ellipse.pdf')
-subprocess.call('open ellipse.pdf',shell = True)
-"""
+wb = np.sqrt(cov[0][0])
+wc = np.sqrt(cov[1][1])
+h = np.sqrt(cov[2][2])
+print wb,wc,h
 
+alpha_3 = 3.44
 hold = [0,1,2]
 comb = list(itertools.combinations(hold,2))
 a2 = []
@@ -220,9 +212,11 @@ b = np.sqrt(b2)*alpha_3
 th = np.arctan(tan2th)/2.
 print a,b,th
 
-"""
-wb = np.sqrt(cov[0][0])
-wc = np.sqrt(cov[1][1])
-h = np.sqrt(cov[2][2])
-print wb,wc,h
-"""
+plt.figure()
+ax = plt.gca()
+ellipse = Ellipse(xy = (0.02234,0.1189), width = a, height = b, angle = np.rad2deg(th), alpha = 0.4, lw = 2)
+ax.add_patch(ellipse)
+plt.xlim(0.02,0.025)
+plt.ylim(0.117,0.121)
+plt.savefig('ellipse.pdf')
+subprocess.call('open ellipse.pdf',shell = True)
