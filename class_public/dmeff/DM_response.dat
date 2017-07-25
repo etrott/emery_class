@@ -1,0 +1,84 @@
+# Dark matter response functions, from 1308.6288.
+#
+# Note that coupling coefficients are not included here. The operator number
+# is given so that couplings can be incorporated within the code.
+#
+# For each new response function, begin with a single line indicating:
+# resp    = response (S=\Sigma, D=\Delta, P=\Phi, p=prime, t=tilde)
+# entries = number of rows for this resp
+#
+# For each response entry:
+# op1  = operator 1 label
+# op2  = operator 2 label
+# vp2  = powers of v_perp^2 this term depends on
+# qm2  = powers of (q/mN)^2 this term depends on
+# J2   = 1 to multiply Rval by J*(J+1), where J is the DM spin
+#      = 0 for no multiplication
+# Rnum = numerical value of numerator of response function R
+# Rden = numerical value of denominator of response function R
+################################################################################
+# resp,  entries
+M        4
+# op1, op2, vp2, qm2, J2, Rnum,  Rden
+1      1     0    0    0   1.0    1.0
+5      5     1    1    1   1.0    3.0
+8      8     1    0    1   1.0    3.0
+11     11    0    1    1   1.0    3.0
+################################################################################
+# resp,  entries
+Ppp      5
+# op1, op2, vp2, qm2, J2, Rnum,  Rden
+3      3     0    1    0   1.0    4.0
+12     12    0    0    1   1.0   12.0
+15     15    0    2    1   1.0   12.0
+12     15    0    1    1   1.0  -12.0
+15     12    0    1    1   1.0  -12.0
+################################################################################
+# resp,  entries
+PppM     3
+# op1, op2, vp2, qm2, J2, Rnum,  Rden
+3      1     0    0    0   1.0    1.0
+12     11    0    0    1   1.0    3.0
+15     11    0    1    1   1.0   -3.0
+################################################################################
+# resp,  entries
+tPp      2
+# op1, op2, vp2, qm2, J2, Rnum,  Rden
+12     12    0    0    1   1.0   12.0
+13     13    0    1    1   1.0   12.0
+################################################################################
+# resp,  entries
+Spp      7
+# op1, op2, vp2, qm2, J2, Rnum,  Rden
+10     10    0    1    0   1.0    4.0
+4      4     0    0    1   1.0   12.0
+4      6     0    1    1   1.0   12.0
+6      4     0    1    1   1.0   12.0
+6      6     0    2    1   1.0   12.0
+12     12    1    0    1   1.0   12.0
+13     13    1    1    1   1.0   12.0
+################################################################################
+# resp,  entries
+Sp       9
+# op1, op2, vp2, qm2, J2, Rnum,  Rden
+3      3     1    1    0   1.0    8.0
+7      7     1    0    0   1.0    8.0
+4      4     0    0    1   1.0   12.0
+9      9     0    1    1   1.0   12.0
+12     12    1    0    1   1.0   24.0
+15     15    1    2    1   1.0   24.0
+12     15    1    1    1   1.0  -24.0
+15     12    1    1    1   1.0  -24.0
+14     14    1    1    1   1.0   24.0
+################################################################################
+# resp,  entries
+D        2
+# op1, op2, vp2, qm2, J2, Rnum,  Rden
+5      5     0    1    1   1.0    3.0
+8      8     0    0    1   1.0    3.0
+################################################################################
+# resp,  entries
+DSp      2
+# op1, op2, vp2, qm2, J2, Rnum,  Rden
+5      4     0    0    1   1.0    3.0
+8      9     0    0    1   1.0   -3.0
