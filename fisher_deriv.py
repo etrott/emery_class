@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 import subprocess
 import matplotlib as mpl
 from numpy import linalg
+from matplotlib.patches import Ellipse
+import itertools
 
 font = {'family':'serif','weight':'normal','size':12}
 mpl.rcParams['xtick.major.size'] = 7
@@ -17,7 +19,7 @@ mpl.rcParams['ytick.minor.width'] = 1
 mpl.rcParams['axes.labelsize'] = 16
 mpl.rc('font', **font)        
 
-def run_fisher(param,cv,delta,mass = [1.0],num = 25,deg = 3,run = 'False',**kwargs):
+def run_fisher(param,cv,delta,mass = [1.0],num = 25,deg = 3,run = 'False'):
 
     def run_CLASS(dict):
         cosmo = Class()
@@ -98,11 +100,27 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 25,deg = 3,run = 'False',**kwar
         poly = []
         for i in range(len(y)):
             for j in range(len(y[i])):
+#                poly.append(np.poly1d(np.polyfit(x[i],y[i][j],deg)))
                 poly.append(np.polyfit(x[i],y[i][j],deg))
         poly = np.reshape(poly,(len(y),len(y[0]),deg+1))
         return poly
-
-
+    """
+        poly = np.reshape(poly,(len(y),len(y[0])))
+        test = []
+        for i in range(len(poly)):
+            for j in range(len(poly[i])):
+                for k in range(len(span[i])):
+                    test.append(poly[i][j](span[i][k]))
+        test = np.reshape(test,(3,2501,25))
+        return test
+#        return poly
+    a = poly_fit(span,cl_tt,deg)
+    print a,np.shape(a)
+    fig,ax = plt.subplots()
+    ax.plot(span[2],a[2][2500],'b')
+    ax.plot(span[2],cl_tt[2][2500],'ro')
+    plt.show()
+    """
     def deriv(cl):
         poly_coeff = poly_fit(span,cl,deg)
         deriv_coeff = []
@@ -119,28 +137,34 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 25,deg = 3,run = 'False',**kwar
 
     deriv_tt,deriv_te,deriv_ee = deriv(cl_tt),deriv(cl_te),deriv(cl_ee)
 
-    def plot(x,y,z):
+    def plot(x,y,deriv = False):
         y_mod = x*(x+1.0)*y/(2*np.pi)
-        z_mod = x*(x+1.0)*z/(2*np.pi)
         param_labels = ['\omega_b','\omega_{cdm}','H_0']
         fig,ax = plt.subplots()
-#        ax.plot(x[0][2:],y_mod[0][2:],label = '$TT$')
-#        ax.plot(x[0][2:],z_mod[0][2:],label = '$EE$')
-        for i in range(len(y_mod)):
-            ax.plot(x[0][2:],y_mod[i][2:],label = r'$%s$' %(param_labels[i]))
-#            ax.plot(x[0],z_mod[i],label = r'$%s$' %(param_labels[i]))
-        plt.xscale('log')
-#        plt.yscale('log')
+        if deriv == False:
+            ax.plot(x[0][2:],y_mod[0][2:],label = '$TT$')
+        if deriv == True:
+#            ax.plot(x[2][2:],y_mod[2][2:]*67.8)
+            for i in range(len(y_mod)):
+                ax.plot(x[0][2:],y_mod[i][2:]*cv_floats[i],label = r'$%s$' %(param_labels[i]))
+#        plt.xscale('log')
+        #plt.yscale('log')
         plt.xlabel(r'$\ell$')
-        plt.ylabel(r'$\partial{C_l^{TT}}/\partial{p}$')
-#        plt.ylabel(r'$\ell(\ell+1)C_{\ell}/2\pi$ $[\mu \rm{K}^2]$')
-        plt.title(r'CMB Power Spectra Derivatives')
-        plt.legend(frameon = False, loc = 'upper right')
-        plt.savefig('deriv.pdf')
-        subprocess.call('open deriv.pdf',shell = True)
+        if deriv == False:
+            plt.ylabel(r'$\ell(\ell+1)C_{\ell}/2\pi$ $[\mu \rm{K}^2]$')
+            plt.title(r'CMB Power Spectrum')
+            plt.legend(frameon = False, loc = 'upper right')
+            plt.savefig('cl.pdf')
+            subprocess.call('open cl.pdf',shell = True)
+        if deriv == True:
+            plt.ylabel(r'$\partial{C_l}/\partial{log(p_i)}$ $[\mu \rm{K}^2]$')
+            plt.title(r'CMB Power Spectrum Derivatives')
+            plt.legend(frameon = False, loc = 'upper right')
+            plt.savefig('deriv.pdf')
+            subprocess.call('open deriv.pdf',shell = True)
 
-#    plot(ell[:,:,12],cl_tt[:,:,12],cl_ee[:,:,12])
-#    plot(ell[:,:,12],deriv_tt,deriv_ee)
+#    plot(ell[:,:,12],cl_tt[:,:,12])
+#    plot(ell[:,:,12],deriv_tt,deriv = True)
 
     def fisher(deriv,ell,cl,s,theta,fsky):
         ell = ell[:,:,12]
@@ -151,7 +175,7 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 25,deg = 3,run = 'False',**kwar
         n = np.square(s)*np.exp(ell*(ell+1.0)*np.square(theta)/(8.0*np.log10(2.0)))
         cl_mat = []
         cl_mat.append([cl_tt[0,:,12][2:]+n[0][2:],cl_te[0,:,12][2:]])
-        cl_mat.append([cl_te[0,:,12][2:],cl_ee[0,:,12][2:]+n[0][2:]])
+        cl_mat.append([cl_te[0,:,12][2:],cl_ee[0,:,12][2:]+(2*n[0][2:])])
         inv = np.linalg.inv(np.reshape(cl_mat,(2,2,2499)).transpose(2,0,1))
         dmat = []
         dmat.append([deriv_tt[:,2:],deriv_te[:,2:]])
@@ -166,12 +190,39 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 25,deg = 3,run = 'False',**kwar
         fish = np.sum(fish,axis = 2)
         return fish
 
-    return fisher(deriv,ell,cl_tt,np.pi/270,7*np.pi/10800,0.75)
+    return fisher(deriv,ell,cl_tt,np.pi/270,7*np.pi/10800,0.5)
 
 fisher_matrix = run_fisher(['output','lensing','omega_b','omega_cdm','H0'],['tCl,pCl,lCl','yes',0.02234,0.1189,67.8],[0.00023,0.0022,1.0])
-print fisher_matrix
 cov = np.linalg.inv(fisher_matrix)
+alpha_3 = 3.44
+"""
+plt.figure()
+ax = plt.gca()
+ellipse = Ellipse(xy = (0.02234,0.1189), width = a, height = b, angle = np.rad2deg(th), alpha = 0.4, lw = 2)
+ax.add_patch(ellipse)
+plt.xlim(0.02,0.025)
+plt.ylim(0.117,0.121)
+plt.savefig('ellipse.pdf')
+subprocess.call('open ellipse.pdf',shell = True)
+"""
+
+hold = [0,1,2]
+comb = list(itertools.combinations(hold,2))
+a2 = []
+b2 = []
+tan2th = []
+for i in range(len(hold)):
+    a2.append(((cov[comb[i][0]][comb[i][0]]+cov[comb[i][1]][comb[i][1]])/2.)+np.sqrt((np.square(cov[comb[i][0]][comb[i][0]]-cov[comb[i][1]][comb[i][1]])/4.)+np.square(cov[comb[i][0]][comb[i][1]])))
+    b2.append(((cov[comb[i][0]][comb[i][0]]+cov[comb[i][1]][comb[i][1]])/2.)-np.sqrt((np.square(cov[comb[i][0]][comb[i][0]]-cov[comb[i][1]][comb[i][1]])/4.)+np.square(cov[comb[i][0]][comb[i][1]])))
+    tan2th.append(2.*cov[comb[i][0]][comb[i][1]]/(np.square(cov[comb[i][0]][comb[i][0]])-np.square(cov[comb[i][1]][comb[i][1]])))
+a = np.sqrt(a2)*alpha_3
+b = np.sqrt(b2)*alpha_3
+th = np.arctan(tan2th)/2.
+print a,b,th
+
+"""
 wb = np.sqrt(cov[0][0])
 wc = np.sqrt(cov[1][1])
 h = np.sqrt(cov[2][2])
 print wb,wc,h
+"""
