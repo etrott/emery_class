@@ -17,7 +17,7 @@ mpl.rcParams['ytick.major.width'] = 1
 mpl.rcParams['ytick.minor.size'] = 3
 mpl.rcParams['ytick.minor.width'] = 1
 mpl.rcParams['axes.labelsize'] = 16
-mpl.rc('font', **font)        
+mpl.rc('font', **font)
 
 def run_fisher(param,cv,delta,mass = [1.0],num = 25,deg = 3,run = 'False'):
 
@@ -59,7 +59,8 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 25,deg = 3,run = 'False'):
         for i in range(len(runs)):
             for j in range(len(runs[i])):
                 dict = {param_floats[k]:runs[i][j][k] for k in range(len(param_floats))}
-                string_dict = {param_strings[k]:cv_strings[k] for k in range(len(param_strings))}
+                string_dict = {param_strings[k]:cv_strings[k] for k in range(len(param_strings)\
+)}
                 dict.update(string_dict)
                 ell.append(run_CLASS(dict)[0])
                 cl_tt.append(run_CLASS(dict)[1])
@@ -83,7 +84,7 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 25,deg = 3,run = 'False'):
         cl_te = np.load('cl_te.npy')
         cl_ee = np.load('cl_ee.npy')
         return ell,cl_tt,cl_te,cl_ee
-
+    
     ell,cl_tt,cl_te,cl_ee = load()
 
     scale = np.asarray((2.7255**2)*(10**12)).reshape(1,1,1)
@@ -100,7 +101,11 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 25,deg = 3,run = 'False'):
         poly = []
         for i in range(len(y)):
             for j in range(len(y[i])):
+<<<<<<< HEAD
                 poly.append(np.poly1d(np.polyfit(x[i],y[i][j],deg)))
+=======
+#                poly.append(np.poly1d(np.polyfit(x[i],y[i][j],deg)))
+>>>>>>> ff49aff6a1d6f7fc5d3de8a82da0d4b560e40d16
                 poly.append(np.polyfit(x[i],y[i][j],deg))
         poly = np.reshape(poly,(len(y),len(y[0]),deg+1))
         return poly
@@ -121,7 +126,11 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 25,deg = 3,run = 'False'):
     ax.plot(span[2],cl_tt[2][2500],'ro')
     plt.show()
     """
+<<<<<<< HEAD
 
+=======
+    
+>>>>>>> ff49aff6a1d6f7fc5d3de8a82da0d4b560e40d16
     def deriv(cl):
         poly_coeff = poly_fit(span,cl,deg)
         deriv_coeff = []
@@ -145,7 +154,11 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 25,deg = 3,run = 'False'):
         if deriv == False:
             ax.plot(x[0][2:],y_mod[0][2:],label = '$TT$')
         if deriv == True:
+<<<<<<< HEAD
             ax.plot(x[2][2:],y_mod[2][2:]*67.8)
+=======
+#            ax.plot(x[2][2:],y_mod[2][2:]*67.8)
+>>>>>>> ff49aff6a1d6f7fc5d3de8a82da0d4b560e40d16
             for i in range(len(y_mod)):
                 ax.plot(x[0][2:],y_mod[i][2:]*cv_floats[i],label = r'$%s$' %(param_labels[i]))
         plt.xlabel(r'$\ell$')
@@ -162,8 +175,8 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 25,deg = 3,run = 'False'):
             plt.savefig('deriv.pdf')
             subprocess.call('open deriv.pdf',shell = True)
 
-    plot(ell[:,:,12],cl_tt[:,:,12])
-    plot(ell[:,:,12],deriv_tt,deriv = True)
+#    plot(ell[:,:,12],cl_tt[:,:,12])
+#    plot(ell[:,:,12],deriv_tt,deriv = True)
 
     def fisher(deriv,ell,cl,s,theta,fsky):
         ell = ell[:,:,12]
@@ -177,7 +190,7 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 25,deg = 3,run = 'False'):
         inv = np.linalg.inv(np.reshape(cl_mat,(2,2,2499)).transpose(2,0,1))
         dmat = []
         dmat.append([deriv_tt[:,2:],deriv_te[:,2:]])
-        dmat.append([deriv_te[:,2:],deriv_ee[:,2:]]) 
+        dmat.append([deriv_te[:,2:],deriv_ee[:,2:]])
         dmat = np.reshape(dmat,(2,2,3,2499)).transpose(2,3,0,1)
         fish = []
         for i in range(len(cv_floats)):
@@ -211,7 +224,7 @@ a = np.sqrt(a2)*alpha_3
 b = np.sqrt(b2)*alpha_3
 th = np.arctan(tan2th)/2.
 print a,b,th
-
+"""
 plt.figure()
 ax = plt.gca()
 ellipse = Ellipse(xy = (0.02234,0.1189), width = a, height = b, angle = np.rad2deg(th), alpha = 0.4, lw = 2)
@@ -220,3 +233,4 @@ plt.xlim(0.02,0.025)
 plt.ylim(0.117,0.121)
 plt.savefig('ellipse.pdf')
 subprocess.call('open ellipse.pdf',shell = True)
+"""
