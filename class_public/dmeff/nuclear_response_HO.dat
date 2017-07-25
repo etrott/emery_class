@@ -1,0 +1,41 @@
+# Nuclear response functions, from 1501.03729.
+# Standard shell model -- single-particle basis is the harmonic oscillator.
+#
+# For each new element, begin with a single line indicating:
+# Z       = atomic number
+# A       = atomic mass
+# entries = number of rows for this elem
+# J       = value of the nucleon spin
+#
+# For each element entry:
+# resp = response (S=\Sigma, D=\Delta, P=\Phi, p indicates prime)
+# iso1 = first isospin index
+# iso2 = second isospin index
+# ypow = powers of y=q*b/2 this term depends on
+# W = numerical value of response function
+#     (multiplied by 4*pi, compared to values given in 1501.03729)
+#     but these numbers are a factor of 4 too small when using with 1308.6288
+#     due to flavor-to-isospin basis conversion normalizaions, so we
+#     multiply these values by 4 within the code
+################################################################################
+# Z,  A,   J,  entries
+1     1   0.5    12
+# resp, iso1, iso2, ypow,   W
+M        0     0     0     0.5
+M        0     1     0     0.5
+M        1     0     0     0.5
+M        1     1     0     0.5
+Spp      0     0     0     0.5
+Spp      0     1     0     0.5
+Spp      1     0     0     0.5
+Spp      1     1     0     0.5
+Sp       0     0     0     1.0
+Sp       0     1     0     1.0
+Sp       1     0     0     1.0
+Sp       1     1     0     1.0
+################################################################################
+# Z,  A,   J,  entries
+2     4   0.0     1
+# resp, iso1, iso2, ypow,   W
+M        0     0     0     4.0
+################################################################################
