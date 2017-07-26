@@ -19,7 +19,7 @@ mpl.rcParams['ytick.minor.width'] = 1
 mpl.rcParams['axes.labelsize'] = 16
 mpl.rc('font', **font)
 
-def run_fisher(param,cv,delta,mass = [1.0],num = 25,deg = 3,run = 'False'):
+def run_fisher(param,cv,delta,mass = [1.0],num = 7,deg = 3,run = False):
 
     def run_CLASS(dict):
         cosmo = Class()
@@ -28,6 +28,7 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 25,deg = 3,run = 'False'):
         output = cosmo.lensed_cl(2500)
         return output['ell'],output['tt'],output['te'],output['ee']
 
+    mid = (num-1)/2
     cv_floats = []
     cv_strings = []
     param_floats = []
@@ -59,8 +60,7 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 25,deg = 3,run = 'False'):
         for i in range(len(runs)):
             for j in range(len(runs[i])):
                 dict = {param_floats[k]:runs[i][j][k] for k in range(len(param_floats))}
-                string_dict = {param_strings[k]:cv_strings[k] for k in range(len(param_strings)\
-)}
+                string_dict = {param_strings[k]:cv_strings[k] for k in range(len(param_strings))}
                 dict.update(string_dict)
                 ell.append(run_CLASS(dict)[0])
                 cl_tt.append(run_CLASS(dict)[1])
@@ -70,19 +70,19 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 25,deg = 3,run = 'False'):
         cl_tt = np.reshape(cl_tt,(len(cv_floats),num,2501))
         cl_te = np.reshape(cl_te,(len(cv_floats),num,2501))
         cl_ee = np.reshape(cl_ee,(len(cv_floats),num,2501))
-        np.save('data/ell',ell)
-        np.save('data/cl_tt',cl_tt)
-        np.save('data/cl_te',cl_te)
-        np.save('data/cl_ee',cl_ee)
+        np.save('data/ell_planck',ell)
+        np.save('data/cl_tt_planck',cl_tt)
+        np.save('data/cl_te_planck',cl_te)
+        np.save('data/cl_ee_planck',cl_ee)
 
-    if run == 'True':
+    if run == True:
         save()
 
     def load():
-        ell = np.load('data/ell.npy')
-        cl_tt = np.load('data/cl_tt.npy')
-        cl_te = np.load('data/cl_te.npy')
-        cl_ee = np.load('data/cl_ee.npy')
+        ell = np.load('data/ell_planck.npy')
+        cl_tt = np.load('data/cl_tt_planck.npy')
+        cl_te = np.load('data/cl_te_planck.npy')
+        cl_ee = np.load('data/cl_ee_planck.npy')
         return ell,cl_tt,cl_te,cl_ee
     
     ell,cl_tt,cl_te,cl_ee = load()
@@ -133,7 +133,7 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 25,deg = 3,run = 'False'):
         deriv = []
         for i in range(len(deriv_coeff)):
             for j in range(len(deriv_coeff[i])):
-                deriv.append(deriv_coeff[i][j][0](span[i][12]))
+                deriv.append(deriv_coeff[i][j][0](span[i][mid]))
         deriv = np.reshape(deriv,(len(deriv_coeff),len(deriv_coeff[0])))
         return deriv
 
@@ -141,7 +141,7 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 25,deg = 3,run = 'False'):
 
     def plot(x,y,deriv = False):
         y_mod = x*(x+1.0)*y/(2*np.pi)
-        param_labels = ['\omega_b','\omega_{cdm}','H_0']
+        param_labels = ['\omega_b','\omega_{cdm}','H_0','n_s','A_s','\\tau']
         fig,ax = plt.subplots()
         if deriv == False:
             ax.plot(x[0][2:],y_mod[0][2:],label = '$TT$')
@@ -160,26 +160,26 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 25,deg = 3,run = 'False'):
             plt.ylabel(r'$\partial{C_l}/\partial{log(p_i)}$ $[\mu \rm{K}^2]$')
             plt.title(r'CMB Power Spectrum Derivatives')
             plt.legend(frameon = False, loc = 'upper right')
-            plt.savefig('plots/deriv.pdf')
-            subprocess.call('open plots/deriv.pdf',shell = True)
+            plt.savefig('plots/deriv_planck.pdf')
+            subprocess.call('open plots/deriv_planck.pdf',shell = True)
 
-#    plot(ell[:,:,12],cl_tt[:,:,12])
-#    plot(ell[:,:,12],deriv_tt,deriv = True)
+#    plot(ell[:,:,mid],cl_tt[:,:,mid])
+#    plot(ell[:,:,mid],deriv_tt,deriv = True)
 
     def fisher(deriv,ell,cl,s,theta,fsky):
-        ell = ell[:,:,12]
-        cl = cl[:,:,12]
+        ell = ell[:,:,mid]
+        cl = cl[:,:,mid]
         s = np.asarray(s).reshape(1,1)
         theta = np.asarray(theta).reshape(1,1)
         n = np.square(s)*np.exp(ell*(ell+1.0)*np.square(theta)/(8.0*np.log10(2.0)))
         cl_mat = []
-        cl_mat.append([cl_tt[0,:,12][2:]+n[0][2:],cl_te[0,:,12][2:]])
-        cl_mat.append([cl_te[0,:,12][2:],cl_ee[0,:,12][2:]+(2*n[0][2:])])
+        cl_mat.append([cl_tt[0,:,mid][2:]+n[0][2:],cl_te[0,:,mid][2:]])
+        cl_mat.append([cl_te[0,:,mid][2:],cl_ee[0,:,mid][2:]+(2*n[0][2:])])
         inv = np.linalg.inv(np.reshape(cl_mat,(2,2,2499)).transpose(2,0,1))
         dmat = []
         dmat.append([deriv_tt[:,2:],deriv_te[:,2:]])
         dmat.append([deriv_te[:,2:],deriv_ee[:,2:]])
-        dmat = np.reshape(dmat,(2,2,3,2499)).transpose(2,3,0,1)
+        dmat = np.reshape(dmat,(2,2,len(cv_floats),2499)).transpose(2,3,0,1)
         fish = []
         for i in range(len(cv_floats)):
             for j in range(len(cv_floats)):
@@ -191,15 +191,23 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 25,deg = 3,run = 'False'):
 
     return fisher(deriv,ell,cl_tt,np.pi/270,7*np.pi/10800,0.5)
 
-fisher_matrix = run_fisher(['output','lensing','omega_b','omega_cdm','H0'],['tCl,pCl,lCl','yes',0.02234,0.1189,67.8],[0.00023,0.0022,1.0])
-cov = np.linalg.inv(fisher_matrix)
+fisher_matrix = run_fisher(['output','lensing','omega_b','omega_cdm','H0','n_s','A_s','tau_reio'],['tCl,pCl,lCl','yes',0.02222,0.1199,67.26,0.9652,2.199e-9,0.078],[0.00023,0.0022,0.98,0.0062,0.016e-9,0.019])
+print fisher_matrix
 
+
+cov = np.linalg.inv(fisher_matrix)
+cv = [0.02222,0.1199,67.26,0.9652,2.199e-9,0.078]
+delta = [0.00023,0.0022,0.98,0.0062,0.016e-9,0.019]
 wb = np.sqrt(cov[0][0])
 wc = np.sqrt(cov[1][1])
 h = np.sqrt(cov[2][2])
+ns = np.sqrt(cov[3][3])
+As = np.sqrt(cov[4][4])
+tau = np.sqrt(cov[5][5])
+print wb,wc,h,ns,As,tau
 
 alpha_3 = 3.44
-hold = [0,1,2]
+hold = [0,1,2,3,4,5]
 comb = list(itertools.combinations(hold,2))
 a2 = []
 b2 = []
@@ -212,13 +220,18 @@ a = np.sqrt(a2)*alpha_3
 b = np.sqrt(b2)*alpha_3
 th = np.arctan(tan2th)/2.
 
-"""
-plt.figure()
-ax = plt.gca()
-ellipse = Ellipse(xy = (0.02234,0.1189), width = a, height = b, angle = np.rad2deg(th), alpha = 0.4, lw = 2)
-ax.add_patch(ellipse)
-plt.xlim(0.02,0.025)
-plt.ylim(0.117,0.121)
-plt.savefig('plots/ellipse.pdf')
-subprocess.call('open plots/ellipse.pdf',shell = True)
-"""
+def plot_ellipse(param1, param2):
+    param_labels = ['\omega_b','\omega_{cdm}','H_0','n_s','A_s','\\tau']
+    plt.figure()
+    ax = plt.gca()
+    ellipse = Ellipse(xy = (cv[param1],cv[param2]), width = a[param1], height = b[param2], angle = np.rad2deg(th[param1]), alpha = 0.4)
+    ax.add_patch(ellipse)
+    plt.xlim(cv[param1]-(alpha_3*delta[param1]),cv[param1]+(alpha_3*delta[param2]))
+    plt.ylim(cv[param2]-(alpha_3*delta[param2]),cv[param2]+(alpha_3*delta[param2]))
+    plt.xlabel(r'$%s$' %(param_labels[param1]))
+    plt.ylabel(r'$%s$' %(param_labels[param2]))
+    plt.savefig('plots/ellipse.pdf')
+    subprocess.call('open plots/ellipse.pdf',shell = True)
+
+#plot_ellipse(0,1)
+
