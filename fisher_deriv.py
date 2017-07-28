@@ -19,13 +19,13 @@ mpl.rcParams['ytick.minor.width'] = 1
 mpl.rcParams['axes.labelsize'] = 16
 mpl.rc('font', **font)
 
-def run_fisher(param,cv,delta,mass = [1.0],num = 7,deg = 3,run = False):
+def run_fisher(param,cv,delta,mass = [1.0],num = 7,deg = 3,run = False, lmax = 2500):
 
     def run_CLASS(dict):
         cosmo = Class()
         cosmo.set(dict)
         cosmo.compute()
-        output = cosmo.lensed_cl(2500)
+        output = cosmo.raw_cl(lmax)
         return output['ell'],output['tt'],output['te'],output['ee']
 
     mid = (num-1)/2
@@ -66,23 +66,23 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 7,deg = 3,run = False):
                 cl_tt.append(run_CLASS(dict)[1])
                 cl_te.append(run_CLASS(dict)[2])
                 cl_ee.append(run_CLASS(dict)[3])
-        ell = np.reshape(ell,(len(cv_floats),num,2501))
-        cl_tt = np.reshape(cl_tt,(len(cv_floats),num,2501))
-        cl_te = np.reshape(cl_te,(len(cv_floats),num,2501))
-        cl_ee = np.reshape(cl_ee,(len(cv_floats),num,2501))
-        np.save('data/ell_planck',ell)
-        np.save('data/cl_tt_planck',cl_tt)
-        np.save('data/cl_te_planck',cl_te)
-        np.save('data/cl_ee_planck',cl_ee)
+        ell = np.reshape(ell,(len(cv_floats),num,lmax+1))
+        cl_tt = np.reshape(cl_tt,(len(cv_floats),num,lmax+1))
+        cl_te = np.reshape(cl_te,(len(cv_floats),num,lmax+1))
+        cl_ee = np.reshape(cl_ee,(len(cv_floats),num,lmax+1))
+        np.save('data/ell_mat',ell)
+        np.save('data/cl_tt_mat',cl_tt)
+        np.save('data/cl_te_mat',cl_te)
+        np.save('data/cl_ee_mat',cl_ee)
 
     if run == True:
         save()
 
     def load():
-        ell = np.load('data/ell_planck.npy')
-        cl_tt = np.load('data/cl_tt_planck.npy')
-        cl_te = np.load('data/cl_te_planck.npy')
-        cl_ee = np.load('data/cl_ee_planck.npy')
+        ell = np.load('data/ell_mat.npy')
+        cl_tt = np.load('data/cl_tt_mat.npy')
+        cl_te = np.load('data/cl_te_mat.npy')
+        cl_ee = np.load('data/cl_ee_mat.npy')
         return ell,cl_tt,cl_te,cl_ee
     
     ell,cl_tt,cl_te,cl_ee = load()
@@ -175,11 +175,11 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 7,deg = 3,run = False):
         cl_mat = []
         cl_mat.append([cl_tt[0,:,mid][2:]+n[0][2:],cl_te[0,:,mid][2:]])
         cl_mat.append([cl_te[0,:,mid][2:],cl_ee[0,:,mid][2:]+(2*n[0][2:])])
-        inv = np.linalg.inv(np.reshape(cl_mat,(2,2,2499)).transpose(2,0,1))
+        inv = np.linalg.inv(np.reshape(cl_mat,(2,2,lmax-1)).transpose(2,0,1))
         dmat = []
         dmat.append([deriv_tt[:,2:],deriv_te[:,2:]])
         dmat.append([deriv_te[:,2:],deriv_ee[:,2:]])
-        dmat = np.reshape(dmat,(2,2,len(cv_floats),2499)).transpose(2,3,0,1)
+        dmat = np.reshape(dmat,(2,2,len(cv_floats),lmax-1)).transpose(2,3,0,1)
         fish = []
         for i in range(len(cv_floats)):
             for j in range(len(cv_floats)):
@@ -189,10 +189,14 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 7,deg = 3,run = False):
         fish = np.sum(fish,axis = 2)
         return fish
 
-    return fisher(deriv,ell,cl_tt,np.pi/270,7*np.pi/10800,0.5)
+    #planck -- return fisher(deriv,ell,cl_tt,40*np.pi/10800,7*np.pi/10800,0.65)
+    #s4 -- return fisher(deriv,ell,cl_tt,1*np.pi/10800,3*np.pi/10800,0.60)
+    return fisher(deriv,ell,cl_tt,0,3*np.pi/10800,0.50)
 
-fisher_matrix = run_fisher(['output','lensing','omega_b','omega_cdm','H0','n_s','A_s','tau_reio'],['tCl,pCl,lCl','yes',0.02222,0.1199,67.26,0.9652,2.199e-9,0.078],[0.00023,0.0022,0.98,0.0062,0.016e-9,0.019])
-print fisher_matrix
+#params from table 1 of Planck 2015 results paper
+#fisher_matrix = run_fisher(['output','lensing','omega_b','omega_cdm','H0','n_s','A_s','tau_reio'],['tCl,pCl,lCl','yes',0.02222,0.1199,67.26,0.9652,2.199e-9,0.078],[0.00023,0.0022,0.98,0.0062,0.016e-9,0.019])
+fisher_matrix = run_fisher(['output','lensing','omega_b','omega_cdm','H0','n_s','A_s','tau_reio'],['tCl,pCl','no',0.0222,0.1197,67.31,0.9655,2.2e-9,0.06],[0.00022,0.0012,0.67,0.0097,0.022e-9,0.0006], run = False)
+#print fisher_matrix
 
 
 cov = np.linalg.inv(fisher_matrix)
@@ -204,7 +208,12 @@ h = np.sqrt(cov[2][2])
 ns = np.sqrt(cov[3][3])
 As = np.sqrt(cov[4][4])
 tau = np.sqrt(cov[5][5])
-print wb,wc,h,ns,As,tau
+print r'H0 : ',h
+print r'ombh2 : ',wb
+print r'omch2 : ',wc
+print r'tau : ',tau
+print r'As : ',As
+print r'ns : ',ns
 
 alpha_3 = 3.44
 hold = [0,1,2,3,4,5]
