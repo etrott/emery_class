@@ -19,7 +19,7 @@ mpl.rcParams['ytick.minor.width'] = 1
 mpl.rcParams['axes.labelsize'] = 16
 mpl.rc('font', **font)
 
-def run_fisher(param,cv,delta,mass = [1.0],num = 7,deg = 3,run = False, lmax = 2500):
+def run_fisher(param,cv,delta,mass = [1.0],num = 9,deg = 3,run = False, lmax = 2500, plot_cl = False, plot_deriv = False, plot_poly = True,param_index = 6,poly_lmin = 50,poly_lmax = 60):
 
     def run_CLASS(dict):
         cosmo = Class()
@@ -48,20 +48,31 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 7,deg = 3,run = False, lmax = 2
         high[i][i] = high[i][i]+delta[i]
         low[i][i] = low[i][i]-delta[i]
         span.append(np.linspace(low[i][i],high[i][i],num))
+    for i in range(len(span)):
+        for j in range(len(span[i])):
+            if span[i][j] <= 0.:
+                #replacing the negative points with positive ones strengthens the constraint by a factor of 3 over setting them to 0
+                span[i] = np.linspace(cv_floats[i],high[i][i],num)
+                #span[i][j] = 0.
     runs = np.reshape([cv_floats]*len(cv_floats)*num,(len(cv_floats),num,len(cv_floats)))
     for i in range(len(runs)):
         runs[i][:,i] = span[i]
 
-    def save():
+    def save(fname):
         ell = []
         cl_tt = []
         cl_te = []
         cl_ee = []
+        counter = 0.
         for i in range(len(runs)):
             for j in range(len(runs[i])):
+                counter += 1.
+                print counter/np.float((num*len(cv_floats)))
                 dict = {param_floats[k]:runs[i][j][k] for k in range(len(param_floats))}
                 string_dict = {param_strings[k]:cv_strings[k] for k in range(len(param_strings))}
+                dmeff_dict = {'m_dmeff':1.,'cc_dmeff_op':1, 'cc_dmeff_num':1, 'cc_dmeff_n':0, 'cc_dmeff_qm2':0, 'cc_dmeff_scale': 1, 'omega_cdm': 0.0, 'spin_dmeff':0., 'use_helium_dmeff':'yes', 'use_temperature_dmeff':'yes'}
                 dict.update(string_dict)
+                dict.update(dmeff_dict)
                 ell.append(run_CLASS(dict)[0])
                 cl_tt.append(run_CLASS(dict)[1])
                 cl_te.append(run_CLASS(dict)[2])
@@ -70,22 +81,22 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 7,deg = 3,run = False, lmax = 2
         cl_tt = np.reshape(cl_tt,(len(cv_floats),num,lmax+1))
         cl_te = np.reshape(cl_te,(len(cv_floats),num,lmax+1))
         cl_ee = np.reshape(cl_ee,(len(cv_floats),num,lmax+1))
-        np.save('data/ell_mat',ell)
-        np.save('data/cl_tt_mat',cl_tt)
-        np.save('data/cl_te_mat',cl_te)
-        np.save('data/cl_ee_mat',cl_ee)
+        np.save('data/ell_%s'%(fname),ell)
+        np.save('data/cl_tt_%s'%(fname),cl_tt)
+        np.save('data/cl_te_%s'%(fname),cl_te)
+        np.save('data/cl_ee_%s'%(fname),cl_ee)
 
     if run == True:
-        save()
+        save('1GeV')
 
-    def load():
-        ell = np.load('data/ell_mat.npy')
-        cl_tt = np.load('data/cl_tt_mat.npy')
-        cl_te = np.load('data/cl_te_mat.npy')
-        cl_ee = np.load('data/cl_ee_mat.npy')
+    def load(fname):
+        ell = np.load('data/ell_%s.npy'%(fname))
+        cl_tt = np.load('data/cl_tt_%s.npy'%(fname))
+        cl_te = np.load('data/cl_te_%s.npy'%(fname))
+        cl_ee = np.load('data/cl_ee_%s.npy'%(fname))
         return ell,cl_tt,cl_te,cl_ee
     
-    ell,cl_tt,cl_te,cl_ee = load()
+    ell,cl_tt,cl_te,cl_ee = load('1GeV')
 
     scale = np.asarray((2.7255**2)*(10**12)).reshape(1,1,1)
 
@@ -101,28 +112,28 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 7,deg = 3,run = False, lmax = 2
         poly = []
         for i in range(len(y)):
             for j in range(len(y[i])):
-#                poly.append(np.poly1d(np.polyfit(x[i],y[i][j],deg)))
                 poly.append(np.polyfit(x[i],y[i][j],deg))
         poly = np.reshape(poly,(len(y),len(y[0]),deg+1))
         return poly
-    """
-        poly = np.reshape(poly,(len(y),len(y[0])))
+
+    def plot_polynomial(x,y,deg,param_index,poly_lmin,poly_lmax):
+        poly = poly_fit(span,cl_tt,deg)
         test = []
         for i in range(len(poly)):
             for j in range(len(poly[i])):
                 for k in range(len(span[i])):
-                    test.append(poly[i][j](span[i][k]))
-        test = np.reshape(test,(3,2501,25))
-        return test
-        return poly
-    a = poly_fit(span,cl_tt,deg)
-    print a,np.shape(a)
-    fig,ax = plt.subplots()
-    ax.plot(span[2],a[2][2500],'b')
-    ax.plot(span[2],cl_tt[2][2500],'ro')
-    plt.show()
-    """
-
+                    test.append(np.poly1d(poly[i][j])(x[i][k]))
+        test = np.reshape(test,(len(cv_floats),lmax+1,num))
+        for i in range(poly_lmin,poly_lmax):
+            fig,ax = plt.subplots()
+            ax.plot(x[param_index],test[param_index][i])
+            ax.plot(x[param_index],y[param_index][i],'ro')
+            plt.savefig('plots/param%s_l%s.pdf' %(param_index,i))
+            subprocess.call('open plots/param%s_l%s.pdf' %(param_index,i),shell = True)
+        
+    if plot_poly == True:
+        plot_polynomial(span,cl_tt,deg,param_index,poly_lmin,poly_lmax)
+    
     def deriv(cl):
         poly_coeff = poly_fit(span,cl,deg)
         deriv_coeff = []
@@ -133,53 +144,64 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 7,deg = 3,run = False, lmax = 2
         deriv = []
         for i in range(len(deriv_coeff)):
             for j in range(len(deriv_coeff[i])):
-                deriv.append(deriv_coeff[i][j][0](span[i][mid]))
+                #make it span[i][mid+1] and see if it's the same
+                #deriv.append(deriv_coeff[i][j][0](span[i][mid]))
+                #print span[i][mid],cv_floats[i]
+                #deriv.append(deriv_coeff[i][j][0](cv_floats[i]+span[i][mid+1]))
+                deriv.append(deriv_coeff[i][j][0](cv_floats[i]))
         deriv = np.reshape(deriv,(len(deriv_coeff),len(deriv_coeff[0])))
         return deriv
 
     deriv_tt,deriv_te,deriv_ee = deriv(cl_tt),deriv(cl_te),deriv(cl_ee)
 
-    def plot(x,y,deriv = False):
+    def plot(x,y,cl_type = 'TT',plot_cl = False, plot_deriv = False):
         y_mod = x*(x+1.0)*y/(2*np.pi)
-        param_labels = ['\omega_b','\omega_{cdm}','H_0','n_s','A_s','\\tau']
-        fig,ax = plt.subplots()
-        if deriv == False:
-            ax.plot(x[0][2:],y_mod[0][2:],label = '$TT$')
-        if deriv == True:
-#            ax.plot(x[2][2:],y_mod[2][2:]*67.8)
-            for i in range(len(y_mod)):
-                ax.plot(x[0][2:],y_mod[i][2:]*cv_floats[i],label = r'$%s$' %(param_labels[i]))
-        plt.xlabel(r'$\ell$')
-        if deriv == False:
-            plt.ylabel(r'$\ell(\ell+1)C_{\ell}/2\pi$ $[\mu \rm{K}^2]$')
+        param_labels = ['\omega_b','\omega_{dmeff}','H_0','n_s','A_s','\\tau','p_{cc}']
+        if plot_cl == True:
+            plt.plot(x[0][2:],y_mod[0][2:])
+            plt.xlabel(r'$\ell$')
+            plt.ylabel(r'$\ell(\ell+1)C_{\ell}^{%s}/2\pi$ $[\mu \rm{K}^2]$' %(cl_type))
             plt.title(r'CMB Power Spectrum')
-            plt.legend(frameon = False, loc = 'upper right')
             plt.savefig('cl.pdf')
             subprocess.call('open cl.pdf',shell = True)
-        if deriv == True:
-            plt.ylabel(r'$\partial{C_l}/\partial{log(p_i)}$ $[\mu \rm{K}^2]$')
+        if plot_deriv == True:
+            fig,ax = plt.subplots()
+            for i in range(len(cv_floats)):
+                #ax.plot(x[i][2:],y_mod[i][2:]*cv_floats[i],label = r'$%s$' %(param_labels[i]))
+                if i == 6:
+                    ax.plot(x[i][2:],y_mod[i][2:],label = r'$%s$' %(param_labels[i]))
+            plt.xlabel(r'$\ell$')
+            plt.ylabel(r'$(\ell(\ell+1)/2\pi) \partial{C_{\ell}^{%s}}/\partial{log(p_i)}$ $[\mu \rm{K}^2]$' %(cl_type))
             plt.title(r'CMB Power Spectrum Derivatives')
-            plt.legend(frameon = False, loc = 'upper right')
+            plt.legend(frameon = False, loc = 'lower right')
             plt.savefig('plots/deriv_planck.pdf')
             subprocess.call('open plots/deriv_planck.pdf',shell = True)
 
-#    plot(ell[:,:,mid],cl_tt[:,:,mid])
-#    plot(ell[:,:,mid],deriv_tt,deriv = True)
+    if plot_cl == True:
+        plot(ell[:,:,mid],cl_tt[:,:,mid],cl_type = 'TT',plot_cl = True)
+    if plot_deriv == True:
+        plot(ell[:,:,mid],deriv_te,cl_type = 'TE',plot_deriv = True)
 
-    def fisher(deriv,ell,cl,s,theta,fsky):
+    def fisher(deriv,ell,cl,s,theta,fsky,polarization = True):
         ell = ell[:,:,mid]
         cl = cl[:,:,mid]
         s = np.asarray(s).reshape(1,1)
         theta = np.asarray(theta).reshape(1,1)
         n = np.square(s)*np.exp(ell*(ell+1.0)*np.square(theta)/(8.0*np.log10(2.0)))
         cl_mat = []
-        cl_mat.append([cl_tt[0,:,mid][2:]+n[0][2:],cl_te[0,:,mid][2:]])
-        cl_mat.append([cl_te[0,:,mid][2:],cl_ee[0,:,mid][2:]+(2*n[0][2:])])
-        inv = np.linalg.inv(np.reshape(cl_mat,(2,2,lmax-1)).transpose(2,0,1))
         dmat = []
-        dmat.append([deriv_tt[:,2:],deriv_te[:,2:]])
-        dmat.append([deriv_te[:,2:],deriv_ee[:,2:]])
-        dmat = np.reshape(dmat,(2,2,len(cv_floats),lmax-1)).transpose(2,3,0,1)
+        if polarization == True:
+            cl_mat.append([cl_tt[0,:,mid][2:]+n[0][2:],cl_te[0,:,mid][2:]])
+            cl_mat.append([cl_te[0,:,mid][2:],cl_ee[0,:,mid][2:]+(2*n[0][2:])])
+            inv = np.linalg.inv(np.reshape(cl_mat,(2,2,lmax-1)).transpose(2,0,1))
+            dmat.append([deriv_tt[:,2:],deriv_te[:,2:]])
+            dmat.append([deriv_te[:,2:],deriv_ee[:,2:]])
+            dmat = np.reshape(dmat,(2,2,len(cv_floats),lmax-1)).transpose(2,3,0,1)
+        if polarization == False:
+            cl_mat.append([cl_tt[0,:,mid][2:]+n[0][2:]])
+            inv = np.linalg.inv(np.reshape(cl_mat,(1,1,lmax-1)).transpose(2,0,1))
+            dmat.append([deriv_tt[:,2:]])
+            dmat = np.reshape(dmat,(1,1,len(cv_floats),lmax-1)).transpose(2,3,0,1)
         fish = []
         for i in range(len(cv_floats)):
             for j in range(len(cv_floats)):
@@ -189,32 +211,35 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 7,deg = 3,run = False, lmax = 2
         fish = np.sum(fish,axis = 2)
         return fish
 
-    #planck -- return fisher(deriv,ell,cl_tt,40*np.pi/10800,7*np.pi/10800,0.65)
-    #s4 -- return fisher(deriv,ell,cl_tt,1*np.pi/10800,3*np.pi/10800,0.60)
-    return fisher(deriv,ell,cl_tt,0,3*np.pi/10800,0.50)
+    #planck -- return fisher(deriv,ell,cl_tt,40*np.pi/10800,7*np.pi/10800,0.65,polarization = True)
+    #s4 -- 
+    return fisher(deriv,ell,cl_tt,1*np.pi/10800,3*np.pi/10800,0.60,polarization = True)
+    #cv-limited -- return fisher(deriv,ell,cl_tt,0,3*np.pi/10800,0.50,polarization = True)
 
 #params from table 1 of Planck 2015 results paper
 #fisher_matrix = run_fisher(['output','lensing','omega_b','omega_cdm','H0','n_s','A_s','tau_reio'],['tCl,pCl,lCl','yes',0.02222,0.1199,67.26,0.9652,2.199e-9,0.078],[0.00023,0.0022,0.98,0.0062,0.016e-9,0.019])
-fisher_matrix = run_fisher(['output','lensing','omega_b','omega_cdm','H0','n_s','A_s','tau_reio'],['tCl,pCl','no',0.0222,0.1197,67.31,0.9655,2.2e-9,0.06],[0.00022,0.0012,0.67,0.0097,0.022e-9,0.0006], run = False)
-#print fisher_matrix
+fisher_matrix = run_fisher(['output','lensing','omega_b','omega_dmeff','H0','n_s','A_s','tau_reio','cc_dmeff_p'],['tCl,pCl','no',0.0222,0.1197,67.31,0.9655,2.2e-9,0.06,0.],[0.00022,0.0012,0.67,0.0097,0.022e-9,0.0006,5e8],run = False)
+print 'Fisher Matrix : ',fisher_matrix
+
+def output_constraints(fisher_matrix,param):
+    cov = np.linalg.inv(fisher_matrix)
+    for i in range(len(param)):
+        constraint = np.sqrt(cov[i][i])
+        print '%s : '%(param[i]), constraint
+
+output_constraints(fisher_matrix,['omega_b','omega_dmeff','H0','n_s','A_s','tau_reio','cc_dmeff_p'])
+
+proton_mass = 0.938272 #GeV
+dmeff_mass = 1. #GeV
+mu = (dmeff_mass*proton_mass)/(dmeff_mass+proton_mass)
+v = 246 #GeV
+sigma = (np.linalg.inv(fisher_matrix)[6][6]*np.square(mu))/(np.pi*np.power(v,4.))
+print sigma
 
 
-cov = np.linalg.inv(fisher_matrix)
-cv = [0.02222,0.1199,67.26,0.9652,2.199e-9,0.078]
-delta = [0.00023,0.0022,0.98,0.0062,0.016e-9,0.019]
-wb = np.sqrt(cov[0][0])
-wc = np.sqrt(cov[1][1])
-h = np.sqrt(cov[2][2])
-ns = np.sqrt(cov[3][3])
-As = np.sqrt(cov[4][4])
-tau = np.sqrt(cov[5][5])
-print r'H0 : ',h
-print r'ombh2 : ',wb
-print r'omch2 : ',wc
-print r'tau : ',tau
-print r'As : ',As
-print r'ns : ',ns
-
+"""
+alpha_1 = 1.52
+alpha_2 = 2.48
 alpha_3 = 3.44
 hold = [0,1,2,3,4,5]
 comb = list(itertools.combinations(hold,2))
@@ -243,4 +268,4 @@ def plot_ellipse(param1, param2):
     subprocess.call('open plots/ellipse.pdf',shell = True)
 
 #plot_ellipse(0,1)
-
+"""
