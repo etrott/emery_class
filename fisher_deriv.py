@@ -160,14 +160,14 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 9,deg = 3,run = False, lmax = 2
 
     deriv_tt,deriv_te,deriv_ee = deriv(cl_tt),deriv(cl_te),deriv(cl_ee)
 
-    def plot(x,y,cl_type = 'TT',plot_cl = False, plot_deriv = False):
+    def plot(x,y,y2,cl_type = 'TT',plot_cl = False, plot_deriv = False):
         y_mod = x*(x+1.0)*y/(2*np.pi)
-        #y2_mod = x*(x+1.0)*y2/(2*np.pi)
+        y2_mod = x*(x+1.0)*y2/(2*np.pi)
         param_labels = ['\omega_b','\omega_{dmeff}','H_0','n_s','A_s','\\tau','p_{cc}']
         if plot_cl == True:
             fig,ax = plt.subplots()
             ax.plot(x[0][2:],y_mod[0][2:])
-            #ax.plot(x[0][2:],y2_mod[0][2:])
+            ax.plot(x[0][2:],y2_mod[0][2:])
             plt.xlabel(r'$\ell$')
             plt.ylabel(r'$\ell(\ell+1)C_{\ell}^{%s}/2\pi$ $[\mu \rm{K}^2]$' %(cl_type))
             plt.yscale('log')
@@ -198,8 +198,8 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 9,deg = 3,run = False, lmax = 2
         cl = cl[:,:,mid]
         s = np.asarray(s).reshape(1,1)
         theta = np.asarray(theta).reshape(1,1)
-        n = np.square(s)*np.exp(ell*(ell+1.0)*np.square(theta)/(8.0*np.log10(2.0)))
-        #plot(ell,cl,n,cl_type = 'TT',plot_cl = True)
+        n = np.square(s)*np.exp(ell*(ell+1.0)*np.square(theta)/(8.0*np.log(2.0)))
+        plot(ell,cl,n,cl_type = 'TT',plot_cl = True)
         #compute cl and derivative matrices
         cl_mat = []
         dmat = []
