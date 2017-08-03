@@ -71,7 +71,7 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 9,deg = 3,run = False, lmax = 2
                 print counter/np.float((num*len(cv_floats)))
                 dict = {param_floats[k]:runs[i][j][k] for k in range(len(param_floats))}
                 string_dict = {param_strings[k]:cv_strings[k] for k in range(len(param_strings))}
-                dmeff_dict = {'m_dmeff':0.5,'cc_dmeff_op':1, 'cc_dmeff_num':1, 'cc_dmeff_n':0, 'cc_dmeff_qm2':0, 'cc_dmeff_scale': 1, 'omega_cdm': 0.0, 'spin_dmeff':0., 'use_helium_dmeff':'yes', 'use_temperature_dmeff':'yes'}
+                dmeff_dict = {'m_dmeff':1.,'cc_dmeff_op':1, 'cc_dmeff_num':1, 'cc_dmeff_n':0, 'cc_dmeff_qm2':0, 'cc_dmeff_scale': 1, 'omega_cdm': 0.0, 'spin_dmeff':0., 'use_helium_dmeff':'yes', 'use_temperature_dmeff':'yes'}
                 dict.update(string_dict)
                 dict.update(dmeff_dict)
                 ell.append(run_CLASS(dict)[0])
@@ -88,7 +88,7 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 9,deg = 3,run = False, lmax = 2
         np.save('data/cl_ee_%s'%(fname),cl_ee)
 
     if run == True:
-        save('0.5GeV')
+        save('1GeV')
 
     def load(fname):
         ell = np.load('data/ell_%s.npy'%(fname))
@@ -97,10 +97,11 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 9,deg = 3,run = False, lmax = 2
         cl_ee = np.load('data/cl_ee_%s.npy'%(fname))
         return ell,cl_tt,cl_te,cl_ee
     
-    ell,cl_tt,cl_te,cl_ee = load('0.5GeV')
+    ell,cl_tt,cl_te,cl_ee = load('1GeV')
 
     scale = np.asarray((2.7255**2)*(10**12)).reshape(1,1,1)
 
+    #scaling by temperature
     ell = np.transpose(ell,(0,2,1))
     cl_tt = np.transpose(cl_tt,(0,2,1))
     cl_te = np.transpose(cl_te,(0,2,1))
@@ -109,6 +110,7 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 9,deg = 3,run = False, lmax = 2
     cl_te = cl_te*scale
     cl_ee = cl_ee*scale
 
+    #fits a polynomial to every l for each param
     def poly_fit(x,y,deg):
         poly = []
         for i in range(len(y)):
@@ -136,12 +138,15 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 9,deg = 3,run = False, lmax = 2
         plot_polynomial(span,cl_tt,deg,param_index,poly_lmin,poly_lmax)
     
     def deriv(cl):
+        #computes the polynomial coefficients
         poly_coeff = poly_fit(span,cl,deg)
+        #computes the derivative of the polynomial fit
         deriv_coeff = []
         for i in range(len(poly_coeff)):
             for j in range(len(poly_coeff[i])):
                 deriv_coeff.append(np.poly1d(np.polyder(poly_coeff[i][j])))
         deriv_coeff = np.reshape(deriv_coeff,(len(poly_coeff),len(poly_coeff[0]),1))
+        #evalutes the derivative
         deriv = []
         for i in range(len(deriv_coeff)):
             for j in range(len(deriv_coeff[i])):
@@ -155,14 +160,14 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 9,deg = 3,run = False, lmax = 2
 
     deriv_tt,deriv_te,deriv_ee = deriv(cl_tt),deriv(cl_te),deriv(cl_ee)
 
-    def plot(x,y,y2,cl_type = 'TT',plot_cl = False, plot_deriv = False):
+    def plot(x,y,cl_type = 'TT',plot_cl = False, plot_deriv = False):
         y_mod = x*(x+1.0)*y/(2*np.pi)
-        y2_mod = x*(x+1.0)*y2/(2*np.pi)
+        #y2_mod = x*(x+1.0)*y2/(2*np.pi)
         param_labels = ['\omega_b','\omega_{dmeff}','H_0','n_s','A_s','\\tau','p_{cc}']
         if plot_cl == True:
             fig,ax = plt.subplots()
             ax.plot(x[0][2:],y_mod[0][2:])
-            ax.plot(x[0][2:],y2_mod[0][2:])
+            #ax.plot(x[0][2:],y2_mod[0][2:])
             plt.xlabel(r'$\ell$')
             plt.ylabel(r'$\ell(\ell+1)C_{\ell}^{%s}/2\pi$ $[\mu \rm{K}^2]$' %(cl_type))
             plt.yscale('log')
@@ -195,6 +200,7 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 9,deg = 3,run = False, lmax = 2
         theta = np.asarray(theta).reshape(1,1)
         n = np.square(s)*np.exp(ell*(ell+1.0)*np.square(theta)/(8.0*np.log10(2.0)))
         #plot(ell,cl,n,cl_type = 'TT',plot_cl = True)
+        #compute cl and derivative matrices
         cl_mat = []
         dmat = []
         if polarization == True:
@@ -209,6 +215,7 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 9,deg = 3,run = False, lmax = 2
             inv = np.linalg.inv(np.reshape(cl_mat,(1,1,lmax-1)).transpose(2,0,1))
             dmat.append([deriv_tt[:,2:]])
             dmat = np.reshape(dmat,(1,1,len(cv_floats),lmax-1)).transpose(2,3,0,1)
+        #compute fisher matrix
         fish = []
         for i in range(len(cv_floats)):
             for j in range(len(cv_floats)):
@@ -224,6 +231,7 @@ def run_fisher(param,cv,delta,mass = [1.0],num = 9,deg = 3,run = False, lmax = 2
     #cv-limited -- return fisher(deriv,ell,cl_tt,0,3*np.pi/10800,0.50,polarization = True)
 
 #params from table 1 of Planck 2015 results paper
+#was running with cc_dmeff_p step size of 5e8
 #fisher_matrix = run_fisher(['output','lensing','omega_b','omega_cdm','H0','n_s','A_s','tau_reio'],['tCl,pCl,lCl','yes',0.02222,0.1199,67.26,0.9652,2.199e-9,0.078],[0.00023,0.0022,0.98,0.0062,0.016e-9,0.019])
 fisher_matrix = run_fisher(['output','lensing','omega_b','omega_dmeff','H0','n_s','A_s','tau_reio','cc_dmeff_p'],['tCl,pCl','no',0.0222,0.1197,67.31,0.9655,2.2e-9,0.06,0.],[0.00022,0.0012,0.67,0.0097,0.022e-9,0.0006,5e8],run = False)
 #print 'Fisher Matrix : ',fisher_matrix
