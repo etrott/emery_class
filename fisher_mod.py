@@ -3,6 +3,8 @@ import numpy as np
 from numpy import linalg
 import itertools
 
+master = {'run': False, 'dmeff_mass': 1., 'fname': '1GeV', 'survey': 's4', 'polarization': False}
+
 def run_CLASS(dict):
     cosmo = Class()
     cosmo.set(dict)
@@ -153,6 +155,11 @@ def cross_section(fisher_matrix,dmeff_mass,proton_mass = 0.938272,v = 246.):
             sigma = ((cov[i][i]*np.square(mu))/(np.pi*np.power(v,4.)))/np.square(2.5*10**13)
             print 'p_cc : ',sigma
 
+if master['polarization'] == True:
+    print master['survey'],master['fname'],'with polarization'
+if master['polarization'] == False:
+    print master['survey'],master['fname'],'w/o polarization'
+
 param = ['output','lensing','omega_b','omega_dmeff','H0','n_s','A_s','tau_reio','cc_dmeff_p']
 cv = ['tCl,pCl','no',0.0222,0.1197,67.31,0.9655,2.2e-9,0.06,0.]
 delta = [0.00022,0.0012,0.67,0.0097,0.022e-9,0.0006,5.e8]
@@ -161,12 +168,16 @@ deg = 3
 lmax = 2500
 cv_strings,param_strings,cv_floats,param_floats,mid = sep_dict(param,cv)
 runs,span = construct_run(cv_floats,delta,num)
-#save('1GeV',1.)
-ell,cl_tt,cl_te,cl_ee = load('1GeV')
+if master['run'] == True:
+    save(master['fname'],master['dmeff_mass'])
+ell,cl_tt,cl_te,cl_ee = load(master['fname'])
 ell,cl_tt,cl_te,cl_ee = temp(ell,cl_tt,cl_te,cl_ee)
 deriv_tt,deriv_te,deriv_ee = deriv(span,cl_tt,cv_floats),deriv(span,cl_te,cv_floats),deriv(span,cl_ee,cv_floats)
-fisher_matrix = fisher(ell,40.*np.pi/10800.,7.*np.pi/10800.,0.5) #planck
-#fisher_matrix = fisher(1.*np.pi/10800.,3.*np.pi/10800.,0.6) #s4
-#fisher_matrix = fisher(0.,3.*np.pi/10800.,0.5) #cv-limited
+if master['survey'] == 'planck':
+    fisher_matrix = fisher(ell,40.*np.pi/10800.,7.*np.pi/10800.,0.5,polarization = master['polarization'])
+if master['survey'] == 's4':
+    fisher_matrix = fisher(ell,1.*np.pi/10800.,3.*np.pi/10800.,0.6,polarization = master['polarization'])
+if master['survey'] == 'cv_limited':
+    fisher_matrix = fisher(ell,0.,3.*np.pi/10800.,0.5,polarization = master['polarization'])
 output_constraints(fisher_matrix,['omega_b','omega_dmeff','H0','n_s','A_s','tau_reio','cc_dmeff_p'])
 cross_section(fisher_matrix,1.)
