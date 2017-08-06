@@ -1,9 +1,8 @@
 from classy import Class
 import numpy as np
 from numpy import linalg
-import itertools
 
-master = {'run': False, 'dmeff_mass': 1., 'fname': '1GeV', 'survey': 's4', 'polarization': False}
+master = {'run': False, 'dmeff_mass': 0.001, 'fname': '1MeV', 'survey': 'planck', 'polarization': True}
 
 def run_CLASS(dict):
     cosmo = Class()
@@ -14,7 +13,6 @@ def run_CLASS(dict):
     return output['ell'],output['tt'],output['te'],output['ee']
 
 def sep_dict(param,cv):
-    mid = (num-1)/2
     cv_floats = []
     cv_strings = []
     param_floats = []
@@ -113,31 +111,36 @@ def deriv(span,cl,cv_floats):
     deriv = np.reshape(deriv,(len(deriv_coeff),len(deriv_coeff[0])))
     return deriv
 
-def fisher(ell,s,theta,fsky,polarization = True):
-    ell = ell[:,:,mid]
-    s = np.asarray(s).reshape(1,1)
-    theta = np.asarray(theta).reshape(1,1)
+def fisher(ell,cl_tt,cl_te,cl_ee,deriv_tt,deriv_te,deriv_ee,cv_floats,param_floats,s,theta,fsky,polarization = True):
+    ell = ell[0,:,mid][2:]
+    a = cl_tt[0,:,mid][2:]
+    b = cl_te[0,:,mid][2:]
+    c = cl_ee[0,:,mid][2:]
+    s = np.asarray(s)
+    theta = np.asarray(theta)
     n = np.square(s)*np.exp(ell*(ell+1.0)*np.square(theta)/(8.0*np.log(2.0)))
     cl_mat = []
     dmat = []
     if polarization == True:
-        cl_mat.append([cl_tt[0,:,mid][2:]+n[0][2:],cl_te[0,:,mid][2:]])
-        cl_mat.append([cl_te[0,:,mid][2:],cl_ee[0,:,mid][2:]+(2*n[0][2:])])
-        inv = np.linalg.inv(np.reshape(cl_mat,(2,2,lmax-1)).transpose(2,0,1))
+        cl_mat.append([a+n,b])
+        cl_mat.append([b,c+(2*n)])
+        cl_mat = np.transpose(cl_mat,(2,0,1))
+        inv = np.linalg.inv(cl_mat)
         dmat.append([deriv_tt[:,2:],deriv_te[:,2:]])
-        dmat.append([deriv_te[:,2:],deriv_ee[:,2:]])
-        dmat = np.reshape(dmat,(2,2,len(cv_floats),lmax-1)).transpose(2,3,0,1)
+        dmat.append([deriv_te[:,2:],deriv_ee[:,2:]])    
+        dmat = np.transpose(dmat,(2,3,0,1))
     if polarization == False:
-        cl_mat.append([cl_tt[0,:,mid][2:]+n[0][2:]])
-        inv = np.linalg.inv(np.reshape(cl_mat,(1,1,lmax-1)).transpose(2,0,1))
+        cl_mat.append([a+n])
+        cl_mat = np.transpose(cl_mat,(2,0,1))
+        inv = np.linalg.inv(cl_mat)
         dmat.append([deriv_tt[:,2:]])
-        dmat = np.reshape(dmat,(1,1,len(cv_floats),lmax-1)).transpose(2,3,0,1)
+        dmat = np.transpose(dmat,(2,3,0,1))
     fish = []
     for i in range(len(cv_floats)):
         for j in range(len(cv_floats)):
-            for k in range(len(ell[0,2:])):
-                fish.append(((2*ell[0][k]+1)*fsky/2)*np.trace(inv[k].dot(dmat[i][k].dot(inv[k]).dot(dmat[j][k]))))
-    fish = np.reshape(fish,(len(cv_floats),len(cv_floats),len(ell[0][2:])))
+            for k in range(len(ell)):
+                fish.append(((2.*ell[k]+1.)*fsky/2.)*np.trace(inv[k].dot(dmat[i][k].dot(inv[k]).dot(dmat[j][k]))))
+    fish = np.reshape(fish,(len(cv_floats),len(cv_floats),len(ell)))
     fish = np.sum(fish,axis = 2)
     return fish
 
@@ -147,37 +150,41 @@ def output_constraints(fisher_matrix,param):
         constraint = np.sqrt(cov[i][i])
         print '%s : '%(param[i]), constraint
 
-def cross_section(fisher_matrix,dmeff_mass,proton_mass = 0.938272,v = 246.):
+def cross_section(fisher_matrix,dmeff_mass,param_floats,proton_mass = 0.938272,v = 246.):
     cov = np.linalg.inv(fisher_matrix)
     mu = (dmeff_mass*proton_mass)/(dmeff_mass+proton_mass)
     for i in range(len(param_floats)):
         if param_floats[i] == 'cc_dmeff_p':
             sigma = ((cov[i][i]*np.square(mu))/(np.pi*np.power(v,4.)))/np.square(2.5*10**13)
             print 'p_cc : ',sigma
-
+"""
 if master['polarization'] == True:
     print master['survey'],master['fname'],'with polarization'
 if master['polarization'] == False:
     print master['survey'],master['fname'],'w/o polarization'
-
+"""
 param = ['output','lensing','omega_b','omega_dmeff','H0','n_s','A_s','tau_reio','cc_dmeff_p']
 cv = ['tCl,pCl','no',0.0222,0.1197,67.31,0.9655,2.2e-9,0.06,0.]
-delta = [0.00022,0.0012,0.67,0.0097,0.022e-9,0.0006,5.e8]
+delta = [0.00022,0.0012,0.67,0.0097,0.022e-9,0.0006,5e8]
 num = 9
 deg = 3
 lmax = 2500
-cv_strings,param_strings,cv_floats,param_floats,mid = sep_dict(param,cv)
-runs,span = construct_run(cv_floats,delta,num)
-if master['run'] == True:
-    save(master['fname'],master['dmeff_mass'])
-ell,cl_tt,cl_te,cl_ee = load(master['fname'])
-ell,cl_tt,cl_te,cl_ee = temp(ell,cl_tt,cl_te,cl_ee)
-deriv_tt,deriv_te,deriv_ee = deriv(span,cl_tt,cv_floats),deriv(span,cl_te,cv_floats),deriv(span,cl_ee,cv_floats)
-if master['survey'] == 'planck':
-    fisher_matrix = fisher(ell,40.*np.pi/10800.,7.*np.pi/10800.,0.5,polarization = master['polarization'])
-if master['survey'] == 's4':
-    fisher_matrix = fisher(ell,1.*np.pi/10800.,3.*np.pi/10800.,0.6,polarization = master['polarization'])
-if master['survey'] == 'cv_limited':
-    fisher_matrix = fisher(ell,0.,3.*np.pi/10800.,0.5,polarization = master['polarization'])
-output_constraints(fisher_matrix,['omega_b','omega_dmeff','H0','n_s','A_s','tau_reio','cc_dmeff_p'])
-cross_section(fisher_matrix,1.)
+mid = (num-1)/2
+def evaluate(master):
+    cv_strings,param_strings,cv_floats,param_floats,mid = sep_dict(param,cv)
+    runs,span = construct_run(cv_floats,delta,num)
+    if master['run'] == True:
+        save(master['fname'],master['dmeff_mass'])
+    ell,cl_tt,cl_te,cl_ee = load(master['fname'])
+    ell,cl_tt,cl_te,cl_ee = temp(ell,cl_tt,cl_te,cl_ee)
+    deriv_tt,deriv_te,deriv_ee = deriv(span,cl_tt,cv_floats),deriv(span,cl_te,cv_floats),deriv(span,cl_ee,cv_floats)
+    if master['survey'] == 'planck':
+        fisher_matrix = fisher(ell,cl_tt,cl_te,cl_ee,deriv_tt,deriv_te,deriv_ee,cv_floats,param_floats,40.*np.pi/10800.,7.*np.pi/10800.,0.5,polarization = master['polarization'])
+    if master['survey'] == 's4':
+        fisher_matrix = fisher(ell,cl_tt,cl_te,cl_ee,deriv_tt,deriv_te,deriv_ee,cv_floats,param_floats,1.*np.pi/10800.,3.*np.pi/10800.,0.6,polarization = master['polarization'])
+    if master['survey'] == 'cv_limited':
+        fisher_matrix = fisher(ell,cl_tt,cl_te,cl_ee,deriv_tt,deriv_te,deriv_ee,cv_floats,param_floats,0.,3.*np.pi/10800.,0.5,polarization = master['polarization'])
+    output_constraints(fisher_matrix,['omega_b','omega_dmeff','H0','n_s','A_s','tau_reio','cc_dmeff_p'])
+    cross_section(fisher_matrix,master['dmeff_mass'],param_floats)
+
+#if __name__ == "__main__":
