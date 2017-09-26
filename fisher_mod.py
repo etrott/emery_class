@@ -2,7 +2,14 @@ from classy import Class
 import numpy as np
 from numpy import linalg
 
-master = {'run': False, 'dmeff_mass': 0.001, 'fname': '1MeV', 'survey': 'planck', 'polarization': True}
+master = {'run': False,
+'dmeff_mass': 0.001,
+'fname': '1MeV',
+'survey': 'planck', 
+'polarization': True,
+'param':['output','lensing','omega_b','omega_dmeff','H0','n_s','A_s','tau_reio','cc_dmeff_p'],
+'cv':['tCl,pCl','no',0.0222,0.1197,67.31,0.9655,2.2e-9,0.06,0.],
+'delta':[0.00022,0.0012,0.67,0.0097,0.022e-9,0.0006,5e8]}
 
 def run_CLASS(dict):
     cosmo = Class()
@@ -43,7 +50,33 @@ def construct_run(cv_floats,delta,num):
         runs[i][:,i] = span[i]
     return runs,span
 
-def save(fname,dmeff_mass):
+def save_pcc(fname,dmeff_mass,runs,cv_strings,param_strings,cv_floats,param_floats):
+    ell = []
+    cl_tt = []
+    cl_te = []
+    cl_ee = []
+    for i in range(len(runs)):
+        if i == 6:
+            for j in range(len(runs[i])):
+                dict = {param_floats[k]:runs[i][j][k] for k in range(len(param_floats))}
+                string_dict = {param_strings[k]:cv_strings[k] for k in range(len(param_strings))}
+                dmeff_dict = {'m_dmeff':dmeff_mass,'cc_dmeff_op':1, 'cc_dmeff_num':1, 'cc_dmeff_n':0, 'cc_dmeff_qm2':0, 'cc_dmeff_scale': 1, 'omega_cdm': 0.0, 'spin_dmeff':0., 'use_helium_dmeff':'yes', 'use_temperature_dmeff':'yes'}
+                dict.update(string_dict)
+                dict.update(dmeff_dict)
+                ell.append(run_CLASS(dict)[0])
+                cl_tt.append(run_CLASS(dict)[1])
+                cl_te.append(run_CLASS(dict)[2])
+                cl_ee.append(run_CLASS(dict)[3])
+    ell = np.reshape(ell,(1,num,lmax+1))
+    cl_tt = np.reshape(cl_tt,(1,num,lmax+1))
+    cl_te = np.reshape(cl_te,(1,num,lmax+1))
+    cl_ee = np.reshape(cl_ee,(1,num,lmax+1))
+    np.save('data/ell_%s'%(fname),ell)
+    np.save('data/cl_tt_%s'%(fname),cl_tt)
+    np.save('data/cl_te_%s'%(fname),cl_te)
+    np.save('data/cl_ee_%s'%(fname),cl_ee)
+
+def save(fname,dmeff_mass,runs,cv_strings,param_strings,cv_floats,param_floats):
     ell = []
     cl_tt = []
     cl_te = []
@@ -144,6 +177,13 @@ def fisher(ell,cl_tt,cl_te,cl_ee,deriv_tt,deriv_te,deriv_ee,cv_floats,param_floa
     fish = np.sum(fish,axis = 2)
     return fish
 
+def noise(ell,s,theta):
+    ell = ell[0,:,mid][2:]
+    s = np.asarray(s)
+    theta = np.asarray(theta)
+    n = np.square(s)*np.exp(ell*(ell+1.0)*np.square(theta)/(8.0*np.log(2.0)))
+    return n
+
 def output_constraints(fisher_matrix,param):
     cov = np.linalg.inv(fisher_matrix)
     for i in range(len(param)):
@@ -163,18 +203,19 @@ if master['polarization'] == True:
 if master['polarization'] == False:
     print master['survey'],master['fname'],'w/o polarization'
 """
-param = ['output','lensing','omega_b','omega_dmeff','H0','n_s','A_s','tau_reio','cc_dmeff_p']
-cv = ['tCl,pCl','no',0.0222,0.1197,67.31,0.9655,2.2e-9,0.06,0.]
-delta = [0.00022,0.0012,0.67,0.0097,0.022e-9,0.0006,5e8]
-num = 9
+#param = ['output','lensing','omega_b','omega_dmeff','H0','n_s','A_s','tau_reio','cc_dmeff_p']
+#cv = ['tCl,pCl','no',0.0222,0.1197,67.31,0.9655,2.2e-9,0.06,0.]
+#delta = [0.00022,0.0012,0.67,0.0097,0.022e-9,0.0006,5e8]
+num = 25
 deg = 3
 lmax = 2500
 mid = (num-1)/2
-def evaluate(master):
-    cv_strings,param_strings,cv_floats,param_floats,mid = sep_dict(param,cv)
-    runs,span = construct_run(cv_floats,delta,num)
+
+def forecast(master):
+    cv_strings,param_strings,cv_floats,param_floats,mid = sep_dict(master['param'],master['cv'])
+    runs,span = construct_run(cv_floats,master['delta'],num)
     if master['run'] == True:
-        save(master['fname'],master['dmeff_mass'])
+        save(master['fname'],master['dmeff_mass'],runs,cv_strings,param_strings,cv_floats,param_floats)
     ell,cl_tt,cl_te,cl_ee = load(master['fname'])
     ell,cl_tt,cl_te,cl_ee = temp(ell,cl_tt,cl_te,cl_ee)
     deriv_tt,deriv_te,deriv_ee = deriv(span,cl_tt,cv_floats),deriv(span,cl_te,cv_floats),deriv(span,cl_ee,cv_floats)
@@ -186,5 +227,25 @@ def evaluate(master):
         fisher_matrix = fisher(ell,cl_tt,cl_te,cl_ee,deriv_tt,deriv_te,deriv_ee,cv_floats,param_floats,0.,3.*np.pi/10800.,0.5,polarization = master['polarization'])
     output_constraints(fisher_matrix,['omega_b','omega_dmeff','H0','n_s','A_s','tau_reio','cc_dmeff_p'])
     cross_section(fisher_matrix,master['dmeff_mass'],param_floats)
+
+def output_cl(master):
+    cv_strings,param_strings,cv_floats,param_floats,mid = sep_dict(master['param'],master['cv'])
+    runs,span = construct_run(cv_floats,master['delta'],num)
+    #if master['run'] == True:
+    #    save(master['fname'],master['dmeff_mass'],runs,cv_strings,param_strings,cv_floats,param_floats)
+    ell,cl_tt,cl_te,cl_ee = load(master['fname'])
+    ell,cl_tt,cl_te,cl_ee = temp(ell,cl_tt,cl_te,cl_ee)
+    return ell,cl_tt,cl_te,cl_ee
+
+def output_deriv(master):
+    cv_strings,param_strings,cv_floats,param_floats,mid = sep_dict(master['param'],master['cv'])
+    runs,span = construct_run(cv_floats,master['delta'],num)
+    #if master['run'] == True:
+    #    save(master['fname'],master['dmeff_mass'],runs,cv_strings,param_strings,cv_floats,param_floats)
+    ell,cl_tt,cl_te,cl_ee = load(master['fname'])
+    ell,cl_tt,cl_te,cl_ee = temp(ell,cl_tt,cl_te,cl_ee)
+    deriv_tt,deriv_te,deriv_ee = deriv(span,cl_tt,cv_floats),deriv(span,cl_te,cv_floats),deriv(span,cl_ee,cv_floats)
+    return deriv_tt,deriv_te,deriv_ee
+
 
 #if __name__ == "__main__":
